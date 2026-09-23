@@ -10,12 +10,15 @@ automatically.
 import pandas as pd
 import streamlit as st
 
+from analysis.entity_resolution import cluster_entities
 from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
 from analysis.product_profile import build_profile
 from analysis.summary import confidence_breakdown, summarize_results
 from database.db import (
+    fetch_all_results,
     fetch_documents,
     fetch_history,
+    fetch_known_identifiers,
     fetch_market_data,
     fetch_results_for_query,
     save_document_pages,
@@ -26,6 +29,7 @@ from processing.document_ingest import ingest_pdf
 from processing.evidence_scoring import confidence_label
 from processing.ingredient_dictionary import lookup_ingredient
 from processing.market_data import ALL_FIELDS, prepare_rows
+from processing.monitoring import find_new_results
 from reports.excel_report import build_excel_report
 from reports.pdf_report import build_pdf_report
 from search_pipeline import run_search
@@ -40,8 +44,8 @@ st.caption(
     "manually in the Market Data tab, each with its own source and confidence."
 )
 
-search_tab, market_tab, documents_tab, opportunity_tab = st.tabs(
-    ["Search", "Market Data", "Documents", "Opportunity Score"]
+search_tab, market_tab, documents_tab, opportunity_tab, entities_tab, monitoring_tab = st.tabs(
+    ["Search", "Market Data", "Documents", "Opportunity Score", "Entities", "Monitoring"]
 )
 
 with search_tab:
@@ -302,3 +306,59 @@ with opportunity_tab:
         score = opportunity_score(scores)
         st.metric("Opportunity score", score)
         st.dataframe(pd.DataFrame(score_breakdown(scores, notes)), use_container_width=True, hide_index=True)
+
+with entities_tab:
+    st.subheader("Entities across all searches")
+    st.caption(
+        "Clusters every stored result — across every query you've run — into "
+        "canonical entities using the same name/company matching rule as "
+        "deduplication within a single search. Not full entity resolution: "
+        "an entity here is a match cluster, not a verified single product."
+    )
+
+    all_rows = [dict(r) for r in fetch_all_results()]
+    if not all_rows:
+        st.info("No stored results yet — run a search first.")
+    else:
+        entities = cluster_entities(all_rows)
+        st.metric("Distinct entities", len(entities))
+        st.dataframe(pd.DataFrame(entities), use_container_width=True, hide_index=True)
+
+with monitoring_tab:
+    st.subheader("Check a saved search for new records")
+    st.caption(
+        "There's no background scheduler here — this re-runs a query on demand "
+        "and flags only the records whose identifier (NCT number, 510(k) number, "
+        "etc.) wasn't already stored from a previous run of the same query."
+    )
+
+    history_queries = sorted({row["query"] for row in fetch_history(limit=100)})
+    if not history_queries:
+        st.info("No saved searches yet — run a search first.")
+    else:
+        monitor_query = st.selectbox("Query to check", options=history_queries)
+        monitor_sources = st.multiselect(
+            "Sources to check",
+            options=["clinicaltrials", "pubmed", "openfda_device", "openfda_drug"],
+            default=["clinicaltrials", "pubmed", "openfda_device", "openfda_drug"],
+        )
+
+        if st.button("Check for updates") and monitor_query:
+            known = fetch_known_identifiers(monitor_query)
+            with st.spinner("Re-running search..."):
+                fresh_results, fresh_warnings, _ = run_search(monitor_query, monitor_sources)
+
+            for w in fresh_warnings:
+                st.warning(w)
+
+            new_results = find_new_results(fresh_results, known)
+            if new_results:
+                st.success(f"{len(new_results)} new record(s) since the last run.")
+                st.dataframe(
+                    pd.DataFrame([r.to_dict() for r in new_results]),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+                save_results(monitor_query, "monitoring_check", new_results)
+            else:
+                st.info("No new records since the last run.")

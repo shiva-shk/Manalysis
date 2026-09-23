@@ -27,6 +27,10 @@ market estimate or a discovery-source lead.
   text per page, tagged with any known ingredient/company mentions, with
   file name and page number kept as the citation
 - Development-opportunity scoring (transparent, weighted, 1-5 per dimension)
+- Entities tab: clusters stored results into canonical entities across
+  every query you've ever run, not just a single search
+- Monitoring tab: re-runs a saved query on demand and flags only the
+  records whose identifier wasn't already stored from a previous run
 - Streamlit UI with Excel and PDF export
 
 Commercial market-data sources (IQVIA, Euromonitor, Mintel, etc.) are not
@@ -48,8 +52,9 @@ pytest
 
 Tests cover the classifier, synonym expansion, evidence scoring,
 deduplication, connector normalization, market-data validation, document
-ingestion, opportunity scoring, and product profiling — all against canned
-data or generated fixtures, no network calls in the test suite.
+ingestion, opportunity scoring, product profiling, cross-query entity
+clustering, and the monitoring diff logic — all against canned data or
+generated fixtures, no network calls in the test suite.
 
 ## Known limitations
 
@@ -67,3 +72,8 @@ data or generated fixtures, no network calls in the test suite.
   which isn't wired in yet.
 - The opportunity score is a decision-support aid based on analyst-entered
   1-5 ratings, not an objective measure.
+- The Entities tab clusters by name/company similarity, the same rule used
+  for within-search deduplication — a match cluster, not a verified merge.
+- Monitoring only diffs records that carry an identifier (NCT number,
+  510(k) number, etc.); there's no background scheduler, so "monitoring"
+  means re-running a saved query on demand, not continuous polling.

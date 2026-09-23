@@ -71,6 +71,27 @@ def fetch_results_for_query(query: str, db_path: str = DB_PATH) -> list[sqlite3.
         ).fetchall()
 
 
+def fetch_all_results(db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    """Every stored result across every query — used for cross-query entity
+    browsing rather than a single search run's results."""
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute("SELECT * FROM search_results ORDER BY evidence_score DESC").fetchall()
+
+
+def fetch_known_identifiers(query: str, db_path: str = DB_PATH) -> set:
+    """Identifiers already stored for a query, used to detect what's new
+    the next time the same search is re-run."""
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT identifier FROM search_results "
+            "WHERE query = ? AND identifier IS NOT NULL",
+            (query,),
+        ).fetchall()
+        return {row["identifier"] for row in rows}
+
+
 def save_market_data(rows: list[dict], db_path: str = DB_PATH) -> int:
     init_db(db_path)
     columns = ALL_FIELDS + ["uploaded_at"]
