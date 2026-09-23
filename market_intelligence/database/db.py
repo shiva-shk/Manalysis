@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from config import DB_PATH
 from database.models import SCHEMA
 from processing.evidence_scoring import confidence_label
+from processing.market_data import ALL_FIELDS
 
 
 @contextmanager
@@ -68,3 +69,28 @@ def fetch_results_for_query(query: str, db_path: str = DB_PATH) -> list[sqlite3.
             "SELECT * FROM search_results WHERE query = ? ORDER BY evidence_score DESC",
             (query,),
         ).fetchall()
+
+
+def save_market_data(rows: list[dict], db_path: str = DB_PATH) -> int:
+    init_db(db_path)
+    columns = ALL_FIELDS + ["uploaded_at"]
+    values = [tuple(row.get(col) for col in columns) for row in rows]
+
+    with get_connection(db_path) as conn:
+        conn.executemany(
+            f"INSERT INTO market_data ({', '.join(columns)}) "
+            f"VALUES ({', '.join('?' for _ in columns)})",
+            values,
+        )
+        return conn.execute("SELECT changes()").fetchone()[0]
+
+
+def fetch_market_data(category: str | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if category:
+            return conn.execute(
+                "SELECT * FROM market_data WHERE category = ? ORDER BY year DESC",
+                (category,),
+            ).fetchall()
+        return conn.execute("SELECT * FROM market_data ORDER BY uploaded_at DESC").fetchall()

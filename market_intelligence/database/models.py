@@ -29,4 +29,25 @@ CREATE TABLE IF NOT EXISTS search_results (
 
 CREATE INDEX IF NOT EXISTS idx_search_results_query ON search_results(query);
 CREATE INDEX IF NOT EXISTS idx_search_results_source_type ON search_results(source_type);
+
+CREATE TABLE IF NOT EXISTS market_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    subcategory TEXT,
+    region TEXT,
+    year INTEGER,
+    market_value REAL,
+    currency TEXT,
+    volume REAL,
+    market_share REAL,
+    growth_rate REAL,
+    forecast_year INTEGER,
+    source TEXT NOT NULL,
+    source_url TEXT,
+    definition TEXT,
+    confidence_score REAL,
+    uploaded_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_data_category ON market_data(category, region);
 """

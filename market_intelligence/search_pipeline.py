@@ -12,6 +12,7 @@ from connectors.openfda import (
     search_openfda_devices,
     search_openfda_drug_labels,
 )
+from connectors.patents import normalize_patents, search_patents
 from connectors.pubmed import normalize_pubmed, search_pubmed
 from processing.deduplication import deduplicate
 from processing.evidence_scoring import score_result
@@ -55,6 +56,13 @@ def run_search(
         try:
             raw = search_openfda_drug_labels(primary_term, limit=page_size)
             all_results.extend(normalize_openfda_drug_labels(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "patents" in sources:
+        try:
+            raw = search_patents(primary_term, limit=page_size)
+            all_results.extend(normalize_patents(raw))
         except ConnectorError as exc:
             warnings.append(str(exc))
 

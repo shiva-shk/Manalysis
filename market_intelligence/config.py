@@ -29,6 +29,13 @@ SOURCES = {
         "supports": ["product", "ingredient", "company"],
         "evidence_weight": 0.90,
     },
+    "patents": {
+        "name": "EPO Open Patent Services",
+        "source_type": "official",
+        "api_available": "requires_credentials",
+        "supports": ["product", "ingredient", "company"],
+        "evidence_weight": 0.90,
+    },
 }
 
 # Confidence bands used across the app when displaying evidence scores.
