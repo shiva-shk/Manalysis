@@ -6,6 +6,7 @@ normalize -> score -> dedupe -> return.
 
 from connectors.base import ConnectorError, SearchResult
 from connectors.clinicaltrials import normalize_clinical_trials, search_clinical_trials
+from connectors.eudamed import normalize_eudamed, search_eudamed_devices
 from connectors.openfda import (
     normalize_openfda_devices,
     normalize_openfda_drug_labels,
@@ -63,6 +64,13 @@ def run_search(
         try:
             raw = search_patents(primary_term, limit=page_size)
             all_results.extend(normalize_patents(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "eudamed" in sources:
+        try:
+            raw = search_eudamed_devices(primary_term, page_size=page_size)
+            all_results.extend(normalize_eudamed(raw))
         except ConnectorError as exc:
             warnings.append(str(exc))
 

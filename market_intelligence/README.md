@@ -15,6 +15,11 @@ market estimate or a discovery-source lead.
   - openFDA (510(k) device clearances, drug labels)
   - EPO Open Patent Services (needs `EPO_OPS_CONSUMER_KEY` /
     `EPO_OPS_CONSUMER_SECRET` — free registration at developers.epo.org)
+  - EUDAMED (EU medical devices) — no documented public API; this calls the
+    same JSON endpoint its own search page's frontend uses. Off by default:
+    it's undocumented, can take 15-20+ seconds per search, and can break or
+    rate-limit without notice. Prefer EUDAMED's official bulk data export
+    (linked from its search page) for anything beyond ad hoc lookups.
 - Result normalization into one common schema
 - Evidence scoring by source type and record completeness
 - Fuzzy deduplication (name similarity plus a matching identifier or company)
@@ -65,9 +70,14 @@ generated fixtures, no network calls in the test suite.
 - The product/entity profile groups records by an exact title match — a
   stand-in for real entity resolution, not a verified merge.
 - Patent search only works with a registered EPO OPS key and network access
-  to `ops.epo.org`; regional regulatory registries (TGA ARTG, EUDAMED,
-  Health Canada, MFDS, PMDA) don't expose simple public APIs and are not
-  yet connected.
+  to `ops.epo.org`. TGA ARTG, Health Canada, MFDS, and PMDA don't expose
+  simple public APIs and aren't connected yet; TGA and Health Canada both
+  publish downloadable bulk data extracts, which would be more reliable
+  than scraping their search pages.
+- EUDAMED has no documented API at all — the connector reverse-engineers
+  the request its own frontend makes, including a browser-like User-Agent
+  header the endpoint requires (it 502s on the default `python-requests`
+  one). Treat it as best-effort, not a stable integration.
 - Document ingestion handles text-based PDFs; scanned documents need OCR,
   which isn't wired in yet.
 - The opportunity score is a decision-support aid based on analyst-entered

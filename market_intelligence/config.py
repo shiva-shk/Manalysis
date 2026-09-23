@@ -36,6 +36,13 @@ SOURCES = {
         "supports": ["product", "ingredient", "company"],
         "evidence_weight": 0.90,
     },
+    "eudamed": {
+        "name": "EUDAMED (EU medical devices)",
+        "source_type": "official",
+        "api_available": "undocumented",
+        "supports": ["device", "company"],
+        "evidence_weight": 0.85,
+    },
 }
 
 # Confidence bands used across the app when displaying evidence scores.
