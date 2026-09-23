@@ -7,6 +7,7 @@ normalize -> score -> dedupe -> return.
 from connectors.base import ConnectorError, SearchResult
 from connectors.clinicaltrials import normalize_clinical_trials, search_clinical_trials
 from connectors.eudamed import normalize_eudamed, search_eudamed_devices
+from connectors.health_canada import normalize_mdall, search_mdall_devices
 from connectors.openfda import (
     normalize_openfda_devices,
     normalize_openfda_drug_labels,
@@ -71,6 +72,13 @@ def run_search(
         try:
             raw = search_eudamed_devices(primary_term, page_size=page_size)
             all_results.extend(normalize_eudamed(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "health_canada" in sources:
+        try:
+            html = search_mdall_devices(primary_term)
+            all_results.extend(normalize_mdall(html)[:page_size])
         except ConnectorError as exc:
             warnings.append(str(exc))
 

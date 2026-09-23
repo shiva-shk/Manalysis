@@ -59,8 +59,9 @@ with search_tab:
             "openfda_drug": "openFDA — drug labels",
             "patents": "EPO patents (requires API credentials)",
             "eudamed": "EUDAMED — EU devices (undocumented, slow)",
+            "health_canada": "Health Canada MDALL (undocumented)",
         }
-        default_off = {"patents", "eudamed"}
+        default_off = {"patents", "eudamed", "health_canada"}
         default_labels = [v for k, v in source_labels.items() if k not in default_off]
         selected_labels = st.multiselect(
             "Sources", options=list(source_labels.values()), default=default_labels
@@ -70,6 +71,12 @@ with search_tab:
             st.caption(
                 "EUDAMED calls the same JSON endpoint its own search page uses "
                 "(no documented public API) and can take 15-20+ seconds per search."
+            )
+        if "health_canada" in selected_sources:
+            st.caption(
+                "Health Canada MDALL has no public API — this drives its search "
+                "form directly (device-name search only) and can break if the "
+                "site changes."
             )
 
         page_size = st.slider("Results per source", min_value=5, max_value=50, value=20, step=5)

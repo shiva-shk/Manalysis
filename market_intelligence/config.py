@@ -43,6 +43,13 @@ SOURCES = {
         "supports": ["device", "company"],
         "evidence_weight": 0.85,
     },
+    "health_canada": {
+        "name": "Health Canada MDALL",
+        "source_type": "official",
+        "api_available": "undocumented",
+        "supports": ["device", "company"],
+        "evidence_weight": 0.85,
+    },
 }
 
 # Confidence bands used across the app when displaying evidence scores.

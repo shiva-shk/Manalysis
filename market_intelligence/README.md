@@ -20,6 +20,10 @@ market estimate or a discovery-source lead.
     it's undocumented, can take 15-20+ seconds per search, and can break or
     rate-limit without notice. Prefer EUDAMED's official bulk data export
     (linked from its search page) for anything beyond ad hoc lookups.
+  - Health Canada MDALL (medical device active licences) — no public API;
+    this drives the search form directly (session cookie + CSRF token,
+    then a device-name search), parsing the HTML results table. Off by
+    default for the same reasons as EUDAMED.
 - Result normalization into one common schema
 - Evidence scoring by source type and record completeness
 - Fuzzy deduplication (name similarity plus a matching identifier or company)
@@ -70,14 +74,18 @@ generated fixtures, no network calls in the test suite.
 - The product/entity profile groups records by an exact title match — a
   stand-in for real entity resolution, not a verified merge.
 - Patent search only works with a registered EPO OPS key and network access
-  to `ops.epo.org`. TGA ARTG, Health Canada, MFDS, and PMDA don't expose
-  simple public APIs and aren't connected yet; TGA and Health Canada both
-  publish downloadable bulk data extracts, which would be more reliable
-  than scraping their search pages.
-- EUDAMED has no documented API at all — the connector reverse-engineers
-  the request its own frontend makes, including a browser-like User-Agent
-  header the endpoint requires (it 502s on the default `python-requests`
-  one). Treat it as best-effort, not a stable integration.
+  to `ops.epo.org`. TGA ARTG, MFDS, and PMDA don't expose simple public
+  APIs and aren't connected yet; TGA also publishes a downloadable bulk
+  data extract, which would be more reliable than scraping its site.
+- EUDAMED and Health Canada MDALL have no documented API at all — both
+  connectors reverse-engineer the request their own frontend/search form
+  makes (EUDAMED needs a browser-like User-Agent header or it 502s;
+  MDALL needs a session cookie and CSRF token pulled from the search
+  page first). Treat both as best-effort scrapers, not stable
+  integrations — they can break silently if either site changes, and
+  MDALL only matches literal substrings of a device name, so a phrase
+  like "dermal filler" can return nothing even though "filler" alone
+  returns real results.
 - Document ingestion handles text-based PDFs; scanned documents need OCR,
   which isn't wired in yet.
 - The opportunity score is a decision-support aid based on analyst-entered
