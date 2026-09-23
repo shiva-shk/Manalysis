@@ -94,3 +94,32 @@ def fetch_market_data(category: str | None = None, db_path: str = DB_PATH) -> li
                 (category,),
             ).fetchall()
         return conn.execute("SELECT * FROM market_data ORDER BY uploaded_at DESC").fetchall()
+
+
+DOCUMENT_COLUMNS = [
+    "file_name", "page_number", "extracted_text", "ingredient_mentions",
+    "company_mentions", "source_type", "confidence", "uploaded_at",
+]
+
+
+def save_document_pages(records: list[dict], db_path: str = DB_PATH) -> int:
+    init_db(db_path)
+    values = [tuple(record.get(col) for col in DOCUMENT_COLUMNS) for record in records]
+
+    with get_connection(db_path) as conn:
+        conn.executemany(
+            f"INSERT INTO document_sources ({', '.join(DOCUMENT_COLUMNS)}) "
+            f"VALUES ({', '.join('?' for _ in DOCUMENT_COLUMNS)})",
+            values,
+        )
+        return conn.execute("SELECT changes()").fetchone()[0]
+
+
+def fetch_documents(db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT id, file_name, page_number, ingredient_mentions, company_mentions, "
+            "source_type, confidence, uploaded_at FROM document_sources "
+            "ORDER BY uploaded_at DESC"
+        ).fetchall()

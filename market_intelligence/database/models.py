@@ -50,4 +50,18 @@ CREATE TABLE IF NOT EXISTS market_data (
 );
 
 CREATE INDEX IF NOT EXISTS idx_market_data_category ON market_data(category, region);
+
+CREATE TABLE IF NOT EXISTS document_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_name TEXT NOT NULL,
+    page_number INTEGER,
+    extracted_text TEXT,
+    ingredient_mentions TEXT,
+    company_mentions TEXT,
+    source_type TEXT,
+    confidence REAL,
+    uploaded_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_document_sources_file ON document_sources(file_name);
 """

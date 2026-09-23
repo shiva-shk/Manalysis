@@ -10,8 +10,19 @@ automatically.
 import pandas as pd
 import streamlit as st
 
+from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
+from analysis.product_profile import build_profile
 from analysis.summary import confidence_breakdown, summarize_results
-from database.db import fetch_history, fetch_market_data, save_market_data, save_results
+from database.db import (
+    fetch_documents,
+    fetch_history,
+    fetch_market_data,
+    fetch_results_for_query,
+    save_document_pages,
+    save_market_data,
+    save_results,
+)
+from processing.document_ingest import ingest_pdf
 from processing.evidence_scoring import confidence_label
 from processing.ingredient_dictionary import lookup_ingredient
 from processing.market_data import ALL_FIELDS, prepare_rows
@@ -29,7 +40,9 @@ st.caption(
     "manually in the Market Data tab, each with its own source and confidence."
 )
 
-search_tab, market_tab = st.tabs(["Search", "Market Data"])
+search_tab, market_tab, documents_tab, opportunity_tab = st.tabs(
+    ["Search", "Market Data", "Documents", "Opportunity Score"]
+)
 
 with search_tab:
     with st.sidebar:
@@ -121,6 +134,26 @@ with search_tab:
 
             with st.expander("Results by source type"):
                 st.write(summary["by_source_type"])
+
+            st.subheader("Product / entity profile")
+            st.caption(
+                "Groups the stored records that share an exact title — a stand-in "
+                "for full entity resolution, not a verified single record."
+            )
+            profile_title = st.selectbox("Focus on", options=sorted(df["title"].unique()))
+            if profile_title:
+                history_rows = [dict(r) for r in fetch_results_for_query(query)]
+                profile = build_profile(history_rows, profile_title)
+
+                pc1, pc2, pc3 = st.columns(3)
+                pc1.metric("Records", profile["source_count"])
+                pc2.metric("Companies", len(profile["companies"]))
+                pc3.metric("Avg. evidence score", profile["avg_evidence_score"])
+
+                for section, section_rows in profile["sections"].items():
+                    if section_rows:
+                        with st.expander(f"{section.capitalize()} ({len(section_rows)})"):
+                            st.dataframe(pd.DataFrame(section_rows), use_container_width=True, hide_index=True)
 
             dl_col1, dl_col2 = st.columns(2)
             excel_bytes = build_excel_report(df, summary, query)
@@ -218,3 +251,54 @@ with market_tab:
         st.dataframe(stored_df, use_container_width=True, hide_index=True)
     else:
         st.info("No market data stored yet.")
+
+with documents_tab:
+    st.subheader("Document ingestion")
+    st.caption(
+        "Upload a brochure, IFU, certificate, or other PDF. Text is extracted per page "
+        "and scanned for known ingredient and company names, keeping the file name and "
+        "page number as the citation for anything pulled from it."
+    )
+
+    pdf_files = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple_files=True)
+    source_type = st.selectbox(
+        "Document type", ["manufacturer", "regulatory", "scientific", "commercial"]
+    )
+
+    if pdf_files and st.button("Extract and store"):
+        total_pages = 0
+        for pdf_file in pdf_files:
+            records = ingest_pdf(pdf_file.read(), pdf_file.name, source_type=source_type)
+            save_document_pages(records)
+            total_pages += len(records)
+        st.success(f"Extracted and stored {total_pages} page(s) from {len(pdf_files)} file(s).")
+
+    st.divider()
+    st.subheader("Stored documents")
+    documents = fetch_documents()
+    if documents:
+        st.dataframe(pd.DataFrame([dict(r) for r in documents]), use_container_width=True, hide_index=True)
+    else:
+        st.info("No documents uploaded yet.")
+
+with opportunity_tab:
+    st.subheader("Development-opportunity score")
+    st.caption(
+        "A transparent, weighted decision-support score, not an objective verdict — "
+        "score each dimension 1 (poor) to 5 (excellent) and record why."
+    )
+
+    with st.form("opportunity_form"):
+        scores = {}
+        notes = {}
+        for key, meta in DIMENSIONS.items():
+            c1, c2 = st.columns([1, 3])
+            scores[key] = c1.slider(f"{meta['label']} ({meta['weight']:.0%})", 1, 5, 3, key=f"score_{key}")
+            notes[key] = c2.text_input("Reasoning", key=f"notes_{key}", label_visibility="collapsed",
+                                        placeholder=f"Why this score for {meta['label'].lower()}?")
+        submitted = st.form_submit_button("Calculate score")
+
+    if submitted:
+        score = opportunity_score(scores)
+        st.metric("Opportunity score", score)
+        st.dataframe(pd.DataFrame(score_breakdown(scores, notes)), use_container_width=True, hide_index=True)

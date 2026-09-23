@@ -1,0 +1,37 @@
+import io
+
+from reportlab.pdfgen import canvas
+
+from processing.document_ingest import extract_pdf_pages, find_mentions, ingest_pdf
+
+
+def _make_pdf_bytes(text: str) -> bytes:
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer)
+    c.drawString(72, 720, text)
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer.read()
+
+
+def test_extract_pdf_pages_returns_text():
+    pdf_bytes = _make_pdf_bytes("Contains hyaluronic acid and is made by Galderma")
+    pages = extract_pdf_pages(pdf_bytes)
+    assert len(pages) == 1
+    assert "hyaluronic" in pages[0]["text"].lower()
+
+
+def test_find_mentions_detects_ingredient_and_company():
+    mentions = find_mentions("This product contains hyaluronic acid and is made by galderma")
+    assert "hyaluronic acid" in mentions["ingredients"]
+    assert "galderma" in mentions["companies"]
+
+
+def test_ingest_pdf_produces_citable_records():
+    pdf_bytes = _make_pdf_bytes("Contains pdrn, manufactured by merz")
+    records = ingest_pdf(pdf_bytes, "brochure.pdf")
+    assert len(records) == 1
+    assert records[0]["file_name"] == "brochure.pdf"
+    assert records[0]["page_number"] == 1
+    assert "pdrn" in (records[0]["ingredient_mentions"] or "")
