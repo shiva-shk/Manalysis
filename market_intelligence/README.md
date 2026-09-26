@@ -24,6 +24,19 @@ market estimate or a discovery-source lead.
     this drives the search form directly (session cookie + CSRF token,
     then a device-name search), parsing the HTML results table. Off by
     default for the same reasons as EUDAMED.
+  - Korea OpenDART (`connectors/dart.py`) — official financial disclosure
+    system for Korean-registered companies (needs `DART_API_KEY`, free
+    registration at opendart.fss.or.kr). This isn't a keyword search like
+    the others: it resolves a company name to a DART `corp_code` from a
+    bulk corp-code list, then either reads a listed company's structured
+    business-report financials or, for a private company that only files
+    audit reports (감사보고서, common above Korea's external-audit
+    threshold), pulls the audit-report document itself and reads the key
+    figures (total assets, liabilities, revenue, employee count) out of
+    its summary metadata. Not wired into the Search tab's generic
+    multi-source flow, since it's a different query shape (a financial
+    lookup, not a title/abstract search) — use it directly, or through the
+    Market Data tab once figures are pulled.
 - Result normalization into one common schema
 - Evidence scoring by source type and record completeness
 - Fuzzy deduplication (name similarity plus a matching identifier or company)
