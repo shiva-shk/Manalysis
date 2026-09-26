@@ -48,3 +48,29 @@ def test_prepare_rows_splits_valid_and_invalid():
     assert len(valid) == 1
     assert len(errors) == 1
     assert "uploaded_at" in valid[0]
+
+
+def test_validate_row_rejects_nan_required_field():
+    """A CSV/Excel upload's blank cell becomes pandas' float NaN, not None
+    or "" — `not row.get(field)` doesn't catch that, since NaN is truthy."""
+    errors = validate_row({
+        "category": float("nan"), "source": "Mintel", "scope_level": "global",
+    })
+    assert "'category' is required" in errors
+
+
+def test_validate_row_rejects_nan_country_when_scope_is_country():
+    errors = validate_row({
+        "category": "filler", "source": "Mintel", "scope_level": "country",
+        "country": float("nan"),
+    })
+    assert any("country" in e for e in errors)
+
+
+def test_prepare_rows_normalizes_nan_to_none():
+    records = [{"category": "filler", "source": "Mintel", "scope_level": "global",
+                "region": float("nan"), "country": float("nan")}]
+    valid, errors = prepare_rows(records)
+    assert not errors
+    assert valid[0]["region"] is None
+    assert valid[0]["country"] is None

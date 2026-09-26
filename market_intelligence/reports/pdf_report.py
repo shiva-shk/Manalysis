@@ -2,6 +2,7 @@
 
 import io
 
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -15,6 +16,15 @@ from reportlab.platypus import (
 )
 
 MAX_ROWS = 25
+
+
+def _clean(value) -> str:
+    """Coerces a cell value to a safe string, treating None and pandas'
+    float NaN (which `value or ""` doesn't catch, since NaN is truthy)
+    the same way: as missing."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    return str(value)
 
 
 def build_pdf_report(rows: list[dict], summary: dict, query: str) -> bytes:
@@ -41,11 +51,11 @@ def build_pdf_report(rows: list[dict], summary: dict, query: str) -> bytes:
     table_data = [["Title", "Company", "Country", "Source", "Score"]]
     for row in rows[:MAX_ROWS]:
         table_data.append([
-            (row.get("title") or "")[:60],
-            (row.get("company") or "")[:30],
-            row.get("country") or "",
-            row.get("source_name") or "",
-            row.get("evidence_score") if row.get("evidence_score") is not None else "",
+            _clean(row.get("title"))[:60],
+            _clean(row.get("company"))[:30],
+            _clean(row.get("country")),
+            _clean(row.get("source_name")),
+            _clean(row.get("evidence_score")),
         ])
 
     table = Table(table_data, repeatRows=1)
