@@ -120,6 +120,7 @@ with search_tab:
             "openfda_udi": "openFDA — UDI/GUDID device identifiers",
             "dailymed": "DailyMed — structured product labels",
             "ema": "EMA — EU centrally authorised medicines",
+            "pubchem": "PubChem — chemical identity (CAS, formula, IUPAC name)",
             "patents": "EPO patents (requires API credentials)",
             "eudamed": "EUDAMED — EU devices (undocumented, slow)",
             "health_canada": "Health Canada MDALL (undocumented)",
@@ -424,20 +425,35 @@ with data_entry_tab:
     with documents_subtab:
         st.subheader("Document ingestion")
         st.caption(
-            "Upload a brochure, IFU, certificate, or other PDF. Text is extracted per page "
-            "and scanned for known ingredient and company names, keeping the file name and "
-            "page number as the citation for anything pulled from it."
+            "Upload a brochure, IFU, certificate, supplier technical document, or other "
+            "PDF. Text is extracted per page and scanned for known ingredient and company "
+            "names, keeping the file name and page number as the citation for anything "
+            "pulled from it."
         )
 
         pdf_files = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple_files=True)
         doc_source_type = st.selectbox(
-            "Document type", ["manufacturer", "regulatory", "scientific", "commercial"]
+            "Document type",
+            ["manufacturer", "regulatory", "scientific", "commercial", "supplier_technical"],
         )
+        known_supplier = None
+        if doc_source_type == "supplier_technical":
+            known_supplier = st.text_input(
+                "Supplier name (optional)",
+                placeholder="e.g. a raw-material supplier from the Suppliers section",
+                help="Tagged into every page's company mentions even if it isn't a name "
+                     "the automatic scan already recognizes — spec sheets, CoAs, and "
+                     "safety data sheets often use a supplier's legal name, not a brand "
+                     "the platform has seen before.",
+            )
 
         if pdf_files and st.button("Extract and store"):
             total_pages = 0
             for pdf_file in pdf_files:
-                records = ingest_pdf(pdf_file.read(), pdf_file.name, source_type=doc_source_type)
+                records = ingest_pdf(
+                    pdf_file.read(), pdf_file.name, source_type=doc_source_type,
+                    known_supplier=known_supplier or None,
+                )
                 save_document_pages(records)
                 total_pages += len(records)
             st.success(f"Extracted and stored {total_pages} page(s) from {len(pdf_files)} file(s).")

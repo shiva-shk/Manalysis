@@ -38,6 +38,15 @@ market estimate or a discovery-source lead.
     this drives the search form directly (session cookie + CSRF token,
     then a device-name search), parsing the HTML results table. Off by
     default for the same reasons as EUDAMED.
+  - PubChem (`connectors/pubchem.py`) — chemical identity (CAS number,
+    molecular formula, IUPAC name, SMILES) by compound name, with an
+    autocomplete fallback for names that aren't an exact match. Free, no
+    key. Routes requests through curl as a subprocess rather than the
+    `requests` library: PubChem's bot-mitigation deterministically
+    returns 503 for every `requests`-library call observed in testing
+    (identical headers, identical network path) while curl against the
+    same URL succeeds every time — a client-fingerprint block, not a
+    real rate limit. Worth knowing if this connector ever needs touching.
   - Korea OpenDART (`connectors/dart.py`) — official financial disclosure
     system for Korean-registered companies (needs `DART_API_KEY`, free
     registration at opendart.fss.or.kr). This isn't a keyword search like
@@ -69,9 +78,13 @@ market estimate or a discovery-source lead.
     when no global vendor covers it) never get conflated just because
     they're stored in the same table. Filterable by scope when browsing
     what's stored.
-  - **Documents**: upload a PDF (brochure, IFU, certificate) and extract
+  - **Documents**: upload a PDF (brochure, IFU, certificate, or supplier
+    technical document — spec sheet, CoA, safety data sheet) and extract
     text per page, tagged with any known ingredient/company mentions,
-    with file name and page number kept as the citation.
+    with file name and page number kept as the citation. A supplier
+    technical document can name its supplier explicitly, so it's tagged
+    correctly even when the supplier's legal name isn't one the
+    automatic scan already recognizes.
   - **Opportunity Score**: transparent, weighted development-opportunity
     scoring, 1-5 per dimension.
   - **Suppliers**: manual-entry supplier database and per-supplier

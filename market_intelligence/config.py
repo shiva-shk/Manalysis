@@ -57,6 +57,13 @@ SOURCES = {
         "supports": ["drug", "company"],
         "evidence_weight": 0.90,
     },
+    "pubchem": {
+        "name": "PubChem (chemical identity)",
+        "source_type": "official",
+        "api_available": True,
+        "supports": ["ingredient"],
+        "evidence_weight": 0.85,
+    },
     "patents": {
         "name": "EPO Open Patent Services",
         "source_type": "official",

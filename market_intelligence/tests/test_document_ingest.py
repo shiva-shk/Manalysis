@@ -35,3 +35,22 @@ def test_ingest_pdf_produces_citable_records():
     assert records[0]["file_name"] == "brochure.pdf"
     assert records[0]["page_number"] == 1
     assert "pdrn" in (records[0]["ingredient_mentions"] or "")
+
+
+def test_ingest_pdf_tags_known_supplier_not_in_company_terms():
+    pdf_bytes = _make_pdf_bytes("Certificate of Analysis")
+    records = ingest_pdf(pdf_bytes, "coa.pdf", source_type="supplier_technical",
+                          known_supplier="Acme Raw Materials Ltd")
+    assert "Acme Raw Materials Ltd" in records[0]["company_mentions"]
+
+
+def test_ingest_pdf_known_supplier_not_duplicated_if_already_detected():
+    pdf_bytes = _make_pdf_bytes("Manufactured by galderma")
+    records = ingest_pdf(pdf_bytes, "spec.pdf", known_supplier="galderma")
+    assert records[0]["company_mentions"].count("galderma") == 1
+
+
+def test_ingest_pdf_without_known_supplier_unchanged():
+    pdf_bytes = _make_pdf_bytes("Manufactured by merz")
+    records = ingest_pdf(pdf_bytes, "spec.pdf")
+    assert records[0]["company_mentions"] == "merz"

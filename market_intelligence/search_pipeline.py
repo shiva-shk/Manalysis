@@ -21,6 +21,7 @@ from connectors.openfda import (
     search_openfda_udi,
 )
 from connectors.patents import normalize_patents, search_patents
+from connectors.pubchem import normalize_pubchem, search_pubchem
 from connectors.pubmed import normalize_pubmed, search_pubmed
 from processing.deduplication import deduplicate
 from processing.evidence_scoring import score_result
@@ -92,6 +93,13 @@ def run_search(
         try:
             raw = search_ema_medicines(primary_term, limit=page_size)
             all_results.extend(normalize_ema_medicines(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "pubchem" in sources:
+        try:
+            raw = search_pubchem(primary_term)
+            all_results.extend(normalize_pubchem(raw))
         except ConnectorError as exc:
             warnings.append(str(exc))
 
