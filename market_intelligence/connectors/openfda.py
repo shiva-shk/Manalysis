@@ -22,10 +22,23 @@ PMA_URL = "https://api.fda.gov/device/pma.json"
 UDI_URL = "https://api.fda.gov/device/udi.json"
 
 
+def _quote(query: str) -> str:
+    """Wraps a query in double quotes for openFDA's Lucene-style search
+    syntax, so a multi-word product name is matched as one phrase rather
+    than OR'd word-by-word — unquoted, "Rejuran Healer" would match any
+    record containing "Rejuran" OR "Healer" alone (e.g. unrelated devices
+    with "Healer" in the name)."""
+    return f'"{query.replace(chr(34), "")}"'
+
+
 def _get(url: str, search: str, limit: int) -> dict:
     params = {"search": search, "limit": limit}
     try:
         response = requests.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+        if response.status_code == 404:
+            # openFDA returns 404 for a search with zero matching records —
+            # documented behavior, not a real error.
+            return {"results": []}
         response.raise_for_status()
     except requests.RequestException as exc:
         raise ConnectorError(f"openFDA request failed: {exc}") from exc
@@ -33,19 +46,19 @@ def _get(url: str, search: str, limit: int) -> dict:
 
 
 def search_openfda_devices(query: str, limit: int = 20) -> dict:
-    return _get(DEVICE_URL, f"device_name:{query}", limit)
+    return _get(DEVICE_URL, f"device_name:{_quote(query)}", limit)
 
 
 def search_openfda_drug_labels(query: str, limit: int = 20) -> dict:
-    return _get(DRUG_LABEL_URL, f"openfda.brand_name:{query}", limit)
+    return _get(DRUG_LABEL_URL, f"openfda.brand_name:{_quote(query)}", limit)
 
 
 def search_openfda_pma(query: str, limit: int = 20) -> dict:
-    return _get(PMA_URL, f"trade_name:{query}", limit)
+    return _get(PMA_URL, f"trade_name:{_quote(query)}", limit)
 
 
 def search_openfda_udi(query: str, limit: int = 20) -> dict:
-    return _get(UDI_URL, f"brand_name:{query}", limit)
+    return _get(UDI_URL, f"brand_name:{_quote(query)}", limit)
 
 
 def normalize_openfda_devices(raw: dict) -> list[SearchResult]:

@@ -1,8 +1,12 @@
+from unittest.mock import Mock, patch
+
 from connectors.openfda import (
     normalize_openfda_devices,
     normalize_openfda_drug_labels,
     normalize_openfda_pma,
     normalize_openfda_udi,
+    search_openfda_devices,
+    search_openfda_drug_labels,
 )
 
 SAMPLE_PMA_RAW = {
@@ -71,3 +75,35 @@ def test_normalize_openfda_devices_and_drug_labels_still_work():
 
     label_raw = {"results": [{"openfda": {"brand_name": ["Widget"], "manufacturer_name": ["Acme"]}}]}
     assert normalize_openfda_drug_labels(label_raw)[0].title == "Widget"
+
+
+def test_search_openfda_devices_quotes_multi_word_query():
+    """A multi-word query must be quoted as one phrase, or openFDA's
+    Lucene-style search treats it as OR — "Rejuran Healer" unquoted would
+    match any record containing "Rejuran" OR "Healer" alone, which is
+    exactly the false-positive noise (e.g. "CONTOUR HEALER") this caused
+    before the fix."""
+    with patch("connectors.openfda.requests.get") as mock_get:
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"results": []})
+        mock_get.return_value.raise_for_status = lambda: None
+        search_openfda_devices("Rejuran Healer")
+        params = mock_get.call_args.kwargs["params"]
+        assert params["search"] == 'device_name:"Rejuran Healer"'
+
+
+def test_search_openfda_drug_labels_quotes_multi_word_query():
+    with patch("connectors.openfda.requests.get") as mock_get:
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"results": []})
+        mock_get.return_value.raise_for_status = lambda: None
+        search_openfda_drug_labels("Rejuran Healer")
+        params = mock_get.call_args.kwargs["params"]
+        assert params["search"] == 'openfda.brand_name:"Rejuran Healer"'
+
+
+def test_openfda_404_is_treated_as_zero_results_not_an_error():
+    """openFDA returns HTTP 404 for a search with zero matching records —
+    documented behavior, not a real failure — so it must not raise."""
+    with patch("connectors.openfda.requests.get") as mock_get:
+        mock_get.return_value = Mock(status_code=404)
+        result = search_openfda_devices("something with no matches")
+        assert result == {"results": []}
