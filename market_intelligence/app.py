@@ -20,9 +20,11 @@ from analysis.cost_model import break_even_volume, estimated_cogs, gross_margin
 from analysis.entity_resolution import cluster_entities, cluster_entities_with_members
 from analysis.full_report import build_full_report
 from analysis.knowledge_graph import build_product_graph, graph_summary, graph_to_edge_list
+from analysis.licensing_analysis import build_licensing_analysis
 from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
 from analysis.product_profile import build_profile
 from analysis.registry_search import search_registry
+from analysis.regulatory_comparison import build_regulatory_comparison
 from analysis.risk_scoring import check_stop_criteria, risk_acceptability, risk_priority_number
 from analysis.summary import confidence_breakdown, summarize_results
 from database.db import (
@@ -1081,6 +1083,50 @@ with registry_tab:
                 st.dataframe(pd.DataFrame([dict(p) for p in product_patents]), use_container_width=True, hide_index=True)
             else:
                 st.caption("None promoted yet — patent-type cluster members become patent records automatically on promotion.")
+
+            product_safety_signals = fetch_safety_signals(selected_id)
+
+            with st.expander("Regulatory comparison"):
+                st.caption(
+                    "Groups this product's regulatory records by jurisdiction. Enter a "
+                    "comma-separated list of jurisdictions to check for gaps — a jurisdiction "
+                    "with no record is reported as exactly that, never inferred."
+                )
+                target_input = st.text_input(
+                    "Target jurisdictions (optional)", placeholder="US, EU, KR, CA, AU, JP",
+                    key="reg_comparison_targets",
+                )
+                targets = [t.strip() for t in target_input.split(",") if t.strip()] or None
+                comparison = build_regulatory_comparison(
+                    [dict(r) for r in reg_records], target_jurisdictions=targets,
+                )
+                if comparison["status_summary"]:
+                    st.write(comparison["status_summary"])
+                else:
+                    st.caption("No regulatory records to compare.")
+                if "gaps" in comparison:
+                    if comparison["gaps"]:
+                        st.warning(f"No record found for: {', '.join(comparison['gaps'])}")
+                    else:
+                        st.success("All target jurisdictions have at least one record.")
+
+            with st.expander("Licensing analysis"):
+                st.caption(
+                    "Structured findings, not a single score — patent/freedom-to-operate risk "
+                    "is too consequential to compress into one number. Absence of a patent "
+                    "record here reflects this platform's own connector coverage, not a "
+                    "freedom-to-operate clearance."
+                )
+                licensing = build_licensing_analysis(
+                    [dict(p) for p in product_patents], [dict(r) for r in reg_records],
+                    [dict(s) for s in clinical_studies], [dict(s) for s in product_safety_signals],
+                )
+                lic1, lic2, lic3 = st.columns(3)
+                lic1.metric("Active patents", licensing["patent_status"]["active_count"])
+                lic2.metric("Jurisdictions approved", licensing["regulatory_breadth"]["jurisdiction_count"])
+                lic3.metric("Safety signals", licensing["safety_profile"]["signal_count"])
+                for consideration in licensing["considerations"]:
+                    st.write(f"• {consideration}")
 
             st.write(f"**Ingredients** ({len(prod_ingredients)})")
             all_ingredients = fetch_ingredients()

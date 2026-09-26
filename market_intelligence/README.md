@@ -250,10 +250,19 @@ WIPO's Global Brand Database has no public API at all. The
 `trademarks` table exists and is ready to receive data from any of
 these once one is actually wired in.
 
-**Not built (phase 4 — remaining comparison/development analysis):** no
-dedicated cross-jurisdiction regulatory-comparison report or
-licensing-analysis report beyond what the existing Full Report and
-canonical structure already surface.
+**Built (phase 4, complete):** `analysis/regulatory_comparison.py`
+groups a promoted product's regulatory records by jurisdiction and, given
+an optional target-jurisdiction list, flags exactly which ones have no
+record — never inferring a status for a gap. `analysis/licensing_analysis.py`
+returns structured findings (patent status, regulatory breadth, clinical
+evidence, safety signals) plus plain-language considerations rather
+than a single score — patent/freedom-to-operate risk is too
+consequential and this platform's own patent coverage too partial
+(EPO only) to compress into one number the way opportunity_score.py
+does for market attractiveness; absence of a patent record is reported
+as exactly that, never as "clear." Both are shown per product in the
+Registry tab's product detail view, under "Regulatory comparison" and
+"Licensing analysis."
 
 ## Architecture: what's built vs. deferred
 
