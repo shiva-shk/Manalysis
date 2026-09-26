@@ -9,7 +9,7 @@ about that so a profile is never mistaken for a verified single record.
 import pandas as pd
 
 SECTION_ENTITY_TYPES = {
-    "regulatory": ["medical_device", "drug_product"],
+    "regulatory": ["medical_device", "drug_product", "eu_medicine"],
     "clinical": ["clinical_study"],
     "patents": ["patent"],
     "literature": ["publication"],

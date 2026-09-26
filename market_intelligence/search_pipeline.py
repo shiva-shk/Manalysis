@@ -6,13 +6,19 @@ normalize -> score -> dedupe -> return.
 
 from connectors.base import ConnectorError, SearchResult
 from connectors.clinicaltrials import normalize_clinical_trials, search_clinical_trials
+from connectors.dailymed import normalize_dailymed_spls, search_dailymed_spls
+from connectors.ema import normalize_ema_medicines, search_ema_medicines
 from connectors.eudamed import normalize_eudamed, search_eudamed_devices
 from connectors.health_canada import normalize_mdall, search_mdall_devices
 from connectors.openfda import (
     normalize_openfda_devices,
     normalize_openfda_drug_labels,
+    normalize_openfda_pma,
+    normalize_openfda_udi,
     search_openfda_devices,
     search_openfda_drug_labels,
+    search_openfda_pma,
+    search_openfda_udi,
 )
 from connectors.patents import normalize_patents, search_patents
 from connectors.pubmed import normalize_pubmed, search_pubmed
@@ -58,6 +64,34 @@ def run_search(
         try:
             raw = search_openfda_drug_labels(primary_term, limit=page_size)
             all_results.extend(normalize_openfda_drug_labels(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "openfda_pma" in sources:
+        try:
+            raw = search_openfda_pma(primary_term, limit=page_size)
+            all_results.extend(normalize_openfda_pma(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "openfda_udi" in sources:
+        try:
+            raw = search_openfda_udi(primary_term, limit=page_size)
+            all_results.extend(normalize_openfda_udi(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "dailymed" in sources:
+        try:
+            raw = search_dailymed_spls(primary_term, page_size=page_size)
+            all_results.extend(normalize_dailymed_spls(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "ema" in sources:
+        try:
+            raw = search_ema_medicines(primary_term, limit=page_size)
+            all_results.extend(normalize_ema_medicines(raw))
         except ConnectorError as exc:
             warnings.append(str(exc))
 

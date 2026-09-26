@@ -15,7 +15,7 @@ import pandas as pd
 
 from processing.ingredient_dictionary import lookup_ingredient, search_ingredients
 
-REGULATORY_ENTITY_TYPES = ["medical_device", "drug_product"]
+REGULATORY_ENTITY_TYPES = ["medical_device", "drug_product", "eu_medicine"]
 STUDY_ENTITY_TYPES = ["clinical_study"]
 PATENT_ENTITY_TYPES = ["patent"]
 

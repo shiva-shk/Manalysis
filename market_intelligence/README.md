@@ -12,7 +12,21 @@ market estimate or a discovery-source lead.
 - Connectors to official/scientific sources with public APIs:
   - ClinicalTrials.gov (v2 REST API)
   - PubMed, via the Europe PMC REST API
-  - openFDA (510(k) device clearances, drug labels)
+  - openFDA (510(k) device clearances, drug labels, PMA/Class III device
+    approvals, UDI/GUDID device identifiers). PMA fills a real gap
+    510(k) alone leaves open: several dermal fillers are PMA-approved
+    (higher-risk pathway) rather than 510(k)-cleared, so a 510(k)-only
+    search misses them.
+  - DailyMed — NLM's official structured-product-label database,
+    documented at dailymed.nlm.nih.gov. Complements openFDA's drug-label
+    connector with the raw SPL set ID and covers OTC as well as
+    prescription products.
+  - EMA (European Medicines Agency) — no documented per-query search API;
+    fetches the same bulk JSON export EMA's own medicines search page
+    uses (~2,700 centrally authorised medicines) and filters client-side.
+    Every search re-downloads the full file. Covers only the EU's
+    centralised procedure — a nationally authorised medicine in one
+    member state won't appear.
   - EPO Open Patent Services (needs `EPO_OPS_CONSUMER_KEY` /
     `EPO_OPS_CONSUMER_SECRET` — free registration at developers.epo.org)
   - EUDAMED (EU medical devices) — no documented public API; this calls the
