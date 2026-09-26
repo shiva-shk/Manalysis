@@ -280,6 +280,73 @@ def fetch_patents(product_id: int | None = None, db_path: str = DB_PATH) -> list
         return conn.execute("SELECT * FROM patents ORDER BY added_at DESC").fetchall()
 
 
+# --- trademarks ---
+
+def upsert_trademark(brand_name: str, db_path: str = DB_PATH, **fields) -> int:
+    """Deduplicated by (brand_name, jurisdiction, registration_number) —
+    unlike patents, a brand name alone isn't unique (many companies can
+    file the same word mark in different classes/jurisdictions), so the
+    dedup key needs more than just the name."""
+    init_db(db_path)
+    fields.setdefault("added_at", _now())
+    jurisdiction = fields.get("jurisdiction")
+    registration_number = fields.get("registration_number")
+
+    with get_connection(db_path) as conn:
+        existing = conn.execute(
+            "SELECT id FROM trademarks WHERE brand_name = ? AND jurisdiction IS ? "
+            "AND registration_number IS ?",
+            (brand_name, jurisdiction, registration_number),
+        ).fetchone()
+        if existing:
+            return existing["id"]
+
+        cols = ["brand_name"] + list(fields.keys())
+        vals = [brand_name] + list(fields.values())
+        conn.execute(
+            f"INSERT INTO trademarks ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_trademarks(company_id: int | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if company_id is not None:
+            return conn.execute(
+                "SELECT * FROM trademarks WHERE company_id = ? ORDER BY added_at DESC",
+                (company_id,),
+            ).fetchall()
+        return conn.execute("SELECT * FROM trademarks ORDER BY added_at DESC").fetchall()
+
+
+# --- safety signals ---
+
+def add_safety_signal(product_id: int, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("added_at", _now())
+    cols = ["product_id"] + list(fields.keys())
+    vals = [product_id] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO safety_signals ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_safety_signals(product_id: int | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if product_id is not None:
+            return conn.execute(
+                "SELECT * FROM safety_signals WHERE product_id = ? ORDER BY signal_date DESC",
+                (product_id,),
+            ).fetchall()
+        return conn.execute("SELECT * FROM safety_signals ORDER BY added_at DESC").fetchall()
+
+
 # --- suppliers ---
 
 def add_supplier(supplier_name: str, db_path: str = DB_PATH, **fields) -> int:

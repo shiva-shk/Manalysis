@@ -120,6 +120,23 @@ market estimate or a discovery-source lead.
   and a `patents` record for any EPO patent cluster member, each
   deduplicated by registry/patent number so re-promoting the same trial
   or patent twice doesn't double it up.
+- Canonical structure (Search tab): the same search reshaped into one
+  typed record — identity, ownership by role, composition, regulatory/
+  clinical/patent evidence, and market data — with an explicit
+  information-gaps list instead of a silently missing section. Checks
+  the registry for a fuzzy-matched promoted product first (match score
+  >= 80): if one exists, every field is the verified registry record
+  with real citations; otherwise the response is built from this
+  search's raw results and marked unverified. `analysis/canonical_search.py`.
+  Backed by `analysis/product_matching.py`'s weighted product-identity
+  scoring (name/manufacturer/regulatory-number/family/country, each
+  worth fixed points, >=0.90 automatic match / 0.70-0.89 analyst review /
+  below that no match) and `processing/query_normalizer.py` (strips
+  accents and trademark symbols so "Juvéderm®" and "juvederm" compare
+  equal) — neither is wired into the promotion workflow's own matching
+  yet, which still uses name/company fuzzy clustering; they're available
+  for a product-resolution pass that's more rigorous than name
+  similarity alone when that's worth building.
 - Full report (Search tab): consolidates a single search into one place —
   product comparison, ingredients, patents, approvals, clinical studies,
   and any stored Market Data rows whose category matches the query
@@ -159,6 +176,64 @@ development layer (QTPP/CQA/CPP/control strategy, risk scoring and stop
 criteria, stage-gate decisions, cost modeling, portfolio gaps), and the
 knowledge graph/search/audit layer — all against canned data or
 generated fixtures, no network calls in the test suite.
+
+## Product/brand search structure: what's built vs. deferred
+
+Following a later architecture note's own phased build order (repository
+layer + normalized database first, source connectors second, IP/trademark
+and market data third, comparison/development analysis fourth):
+
+**Built (phase 1 — repository + search structure):** the registry schema
+already covered products/aliases/companies/product_companies/ingredients/
+product_ingredients/regulatory_records/clinical_studies/patents/
+field_evidence; this pass added the remaining fields that spec calls for
+(`product_subtype`, `target_area` on products; `former_names`, `address`,
+`manufacturing_sites`, `certifications` on companies; `korean_name` on
+ingredients; `page_number`/`verification_status` on product_ingredients;
+`product_category`/`approval_number`/`notification_number`/
+`authorized_representative`/`claim_type`/`expiry_date`/`source_document`
+on regulatory_records; `ingredient_id`/`route`/`dose`/`population`/
+`sample_size`/`primary_outcome`/`publication_id` on clinical_studies;
+`application_number`/`patent_family`/`priority_date`/`expiration_date`
+on patents), plus two new tables (`trademarks`, `safety_signals`) with
+CRUD functions, all as guarded additive migrations so an existing
+database upgrades in place. Also added: `processing/query_normalizer.py`
+(accent/trademark-symbol stripping for query matching), a weighted
+`analysis/product_matching.py` (structured-field product-identity
+scoring, not name-similarity-only), patent-number and clinical-trial-ID
+as distinct query-classifier types, and the canonical search-response
+structure described above.
+
+**Built (phase 2 — source connectors):** already covered by the
+connectors listed above — FDA (510(k)/PMA/UDI/drug labels/DailyMed),
+EUDAMED, ClinicalTrials.gov, PubMed/Europe PMC, EPO patents, PubChem,
+EMA, Korea OpenDART (financial filings only). Document upload/PDF
+extraction is the "official product documents" source. **Blocked, not
+built:** Korea's MFDS cosmetics/medical-device open APIs are real and
+free (via data.go.kr) but need a Korean-phone-verified account to
+register for a key, which isn't available in this environment; EU
+CosIng and ECHA have no public API at all (ECHA actively blocks direct
+access); the "Korean Cosmetic Ingredients API" some third parties sell
+is a paid RapidAPI product repackaging the same MFDS data data.go.kr
+already gives away free — not worth paying for. TGA, MFDS medical
+devices, PMDA, and KIPRIS remain unconnected for the same
+undocumented-API reasons as before.
+
+**Not built (phase 3 — IP/trademark and market-data expansion):** no
+trademark connector (WIPO Global Brand Database, EUIPO, USPTO TESS,
+KIPRIS) — the `trademarks` table exists and is ready to receive data,
+but none of those sources has been researched for a real free API yet.
+No safety-signal connector either — the `safety_signals` table exists,
+and openFDA's `device/recall.json`/`device/event.json` (MAUDE) endpoints
+are the most obvious real, free source to wire in next, but that's
+deferred pending an explicit ask rather than assumed.
+
+**Not built (phase 4 — comparison/development analysis):** the weighted
+product-matching function isn't wired into the promotion workflow yet
+(promotion still uses name/company fuzzy clustering from
+`analysis/entity_resolution.py`); no dedicated regulatory-comparison or
+licensing-analysis report beyond what the existing Full Report and
+canonical structure already surface.
 
 ## Architecture: what's built vs. deferred
 

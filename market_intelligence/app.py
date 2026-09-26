@@ -10,9 +10,12 @@ what a live connector search returns) and Registry (which only shows the
 verified/promoted layer, with no entry forms of its own besides promotion).
 """
 
+import json
+
 import pandas as pd
 import streamlit as st
 
+from analysis.canonical_search import build_canonical_search_response
 from analysis.cost_model import break_even_volume, estimated_cogs, gross_margin
 from analysis.entity_resolution import cluster_entities, cluster_entities_with_members
 from analysis.full_report import build_full_report
@@ -65,6 +68,8 @@ from database.registry_db import (
     fetch_products,
     fetch_qttp,
     fetch_regulatory_records,
+    fetch_safety_signals,
+    fetch_trademarks,
     log_change_event,
     fetch_risk_assessments,
     fetch_stage_gate_decisions,
@@ -312,6 +317,65 @@ with search_tab:
                 data=full_report_excel,
                 file_name=f"{query.replace(' ', '_')}_full_report.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+            st.divider()
+            st.subheader("Canonical structure")
+            st.caption(
+                "The same search result reshaped into one structured record — "
+                "identity, ownership by role, composition, regulatory/clinical/"
+                "patent evidence, and market data — with an explicit list of "
+                "what wasn't found rather than leaving a gap silent. If this "
+                "product has been promoted in the Registry tab, every field "
+                "below comes from that verified record with real citations; "
+                "otherwise it's built from this search's raw results and "
+                "marked unverified."
+            )
+
+            registry_hits = search_registry(query)
+            top_hit = next((h for h in registry_hits if h["entity_type"] == "product"), None)
+            registry_match = None
+            if top_hit and top_hit["match_score"] >= 80:
+                matched_product = next(
+                    (p for p in fetch_products() if p["id"] == top_hit["entity_id"]), None
+                )
+                if matched_product:
+                    registry_match = {
+                        "product": dict(matched_product),
+                        "companies": [dict(c) for c in fetch_product_companies(matched_product["id"])],
+                        "ingredients": [dict(i) for i in fetch_product_ingredients(matched_product["id"])],
+                        "regulatory_records": fetch_regulatory_records(matched_product["id"]),
+                        "clinical_studies": fetch_clinical_studies(matched_product["id"]),
+                        "patents": fetch_patents(matched_product["id"]),
+                        "trademarks": [],
+                        "safety_signals": fetch_safety_signals(matched_product["id"]),
+                    }
+
+            canonical = build_canonical_search_response(
+                query, query_type, df.to_dict("records"), full_report["market_data"], registry_match,
+            )
+
+            if canonical["canonical_entity"]["verified"]:
+                st.success(f"Matched a promoted registry product (fuzzy match score {top_hit['match_score']}).")
+            else:
+                st.info("No promoted registry product matched closely enough — built from raw search results.")
+
+            if canonical["information_gaps"]:
+                with st.expander(f"Information gaps ({len(canonical['information_gaps'])})", expanded=True):
+                    for gap in canonical["information_gaps"]:
+                        st.caption(f"• {gap}")
+
+            canon_col1, canon_col2 = st.columns(2)
+            canon_col1.write("**Companies**")
+            canon_col1.dataframe(pd.DataFrame(canonical["companies"]), use_container_width=True, hide_index=True)
+            canon_col2.write("**Ingredients**")
+            canon_col2.dataframe(pd.DataFrame(canonical["ingredients"]), use_container_width=True, hide_index=True)
+
+            st.download_button(
+                "Download canonical structure (JSON)",
+                data=json.dumps(canonical, indent=2, default=str),
+                file_name=f"{query.replace(' ', '_')}_canonical.json",
+                mime="application/json",
             )
 
     st.divider()

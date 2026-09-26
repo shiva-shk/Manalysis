@@ -79,10 +79,14 @@ CREATE TABLE IF NOT EXISTS companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     canonical_name TEXT NOT NULL,
     legal_name TEXT,
+    former_names TEXT,
     parent_company TEXT,
     company_type TEXT,
     country TEXT,
+    address TEXT,
     website TEXT,
+    manufacturing_sites TEXT,
+    certifications TEXT,
     verification_status TEXT DEFAULT 'awaiting_review',
     created_at TEXT,
     UNIQUE(canonical_name)
@@ -94,9 +98,11 @@ CREATE TABLE IF NOT EXISTS products (
     brand_name TEXT,
     product_family TEXT,
     product_type TEXT,
+    product_subtype TEXT,
     regulatory_category TEXT,
     route TEXT,
     intended_use TEXT,
+    target_area TEXT,
     country_of_origin TEXT,
     launch_year INTEGER,
     status TEXT DEFAULT 'awaiting_review',
@@ -140,6 +146,7 @@ CREATE TABLE IF NOT EXISTS ingredients (
     preferred_name TEXT NOT NULL,
     inci_name TEXT,
     chemical_name TEXT,
+    korean_name TEXT,
     cas_number TEXT,
     ec_number TEXT,
     material_family TEXT,
@@ -160,6 +167,8 @@ CREATE TABLE IF NOT EXISTS product_ingredients (
     concentration_unit TEXT,
     concentration_type TEXT DEFAULT 'not_disclosed',
     source_document TEXT,
+    page_number INTEGER,
+    verification_status TEXT DEFAULT 'machine_extracted',
     confidence REAL
 );
 
@@ -171,15 +180,22 @@ CREATE TABLE IF NOT EXISTS regulatory_records (
     product_id INTEGER NOT NULL REFERENCES products(id),
     jurisdiction TEXT NOT NULL,
     authority TEXT,
+    product_category TEXT,
     regulatory_category TEXT,
     classification TEXT,
     registration_number TEXT,
+    approval_number TEXT,
+    notification_number TEXT,
     applicant TEXT,
     manufacturer TEXT,
+    authorized_representative TEXT,
     indication TEXT,
+    claim_type TEXT,
     status TEXT,
     approval_date TEXT,
+    expiry_date TEXT,
     source_url TEXT,
+    source_document TEXT,
     source_type TEXT,
     verification_date TEXT
 );
@@ -209,15 +225,22 @@ CREATE INDEX IF NOT EXISTS idx_field_evidence_entity ON field_evidence(entity_ty
 CREATE TABLE IF NOT EXISTS clinical_studies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id INTEGER REFERENCES products(id),
+    ingredient_id INTEGER REFERENCES ingredients(id),
     registry_name TEXT,
     registry_id TEXT,
     study_title TEXT NOT NULL,
     study_type TEXT,
     status TEXT,
     intervention TEXT,
+    route TEXT,
+    dose TEXT,
+    population TEXT,
+    sample_size INTEGER,
     condition_summary TEXT,
+    primary_outcome TEXT,
     sponsor TEXT,
     country TEXT,
+    publication_id TEXT,
     evidence_level TEXT,
     source_url TEXT,
     added_at TEXT
@@ -231,11 +254,15 @@ CREATE TABLE IF NOT EXISTS patents (
     product_id INTEGER REFERENCES products(id),
     company_id INTEGER REFERENCES companies(id),
     patent_number TEXT NOT NULL,
+    application_number TEXT,
+    patent_family TEXT,
     jurisdiction TEXT,
     title TEXT,
     applicant TEXT,
     inventors TEXT,
+    priority_date TEXT,
     publication_date TEXT,
+    expiration_date TEXT,
     legal_status TEXT,
     patent_type TEXT,
     claim_summary TEXT,
@@ -245,6 +272,37 @@ CREATE TABLE IF NOT EXISTS patents (
 );
 
 CREATE INDEX IF NOT EXISTS idx_patents_product ON patents(product_id);
+
+CREATE TABLE IF NOT EXISTS trademarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand_name TEXT NOT NULL,
+    company_id INTEGER REFERENCES companies(id),
+    jurisdiction TEXT,
+    application_number TEXT,
+    registration_number TEXT,
+    status TEXT,
+    goods_and_services TEXT,
+    source_url TEXT,
+    added_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_trademarks_brand_name ON trademarks(brand_name);
+CREATE INDEX IF NOT EXISTS idx_trademarks_company ON trademarks(company_id);
+
+CREATE TABLE IF NOT EXISTS safety_signals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER REFERENCES products(id),
+    jurisdiction TEXT,
+    signal_type TEXT,
+    severity TEXT,
+    description TEXT,
+    signal_date TEXT,
+    source_url TEXT,
+    source_type TEXT,
+    added_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_safety_signals_product ON safety_signals(product_id);
 
 CREATE TABLE IF NOT EXISTS suppliers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
