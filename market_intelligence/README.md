@@ -79,6 +79,15 @@ market estimate or a discovery-source lead.
   regulatory records from jurisdictions with no connector here (TGA,
   MFDS, PMDA), so those gaps are filled by hand with a source rather
   than left silent.
+- Full report (Search tab): consolidates a single search into one place —
+  product comparison, ingredients, patents, approvals, clinical studies,
+  and any stored Market Data rows whose category matches the query
+  (market analysis, sales, market share). Every section is a view over
+  data the platform already has (the search results just returned, the
+  ingredient reference table, previously entered/uploaded Market Data
+  rows) — a query with nothing stored for a section shows it empty
+  rather than estimating a number. Exportable as a single multi-sheet
+  Excel workbook, one sheet per section.
 - Streamlit UI with Excel and PDF export
 
 Commercial market-data sources (IQVIA, Euromonitor, Mintel, etc.) are not

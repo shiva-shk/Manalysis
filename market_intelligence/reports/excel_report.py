@@ -28,3 +28,33 @@ def build_excel_report(df: pd.DataFrame, summary: dict, query: str) -> bytes:
 
     buffer.seek(0)
     return buffer.read()
+
+
+def build_full_report_excel(report: dict, query: str) -> bytes:
+    """One sheet per section of a full report (analysis.full_report):
+    product comparison, ingredients, patents, approvals, studies, and any
+    matching Market Data rows (market analysis / sales / market share)."""
+    buffer = io.BytesIO()
+
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        pd.DataFrame([{"Query": query}]).to_excel(writer, sheet_name="Overview", index=False)
+
+        product_comparison = report.get("product_comparison") or []
+        pd.DataFrame(product_comparison).to_excel(writer, sheet_name="Product Comparison", index=False)
+
+        ingredients = report.get("ingredients") or {}
+        ingredient_rows = []
+        if ingredients.get("exact_match"):
+            ingredient_rows.append(ingredients["exact_match"])
+        ingredient_rows.extend(ingredients.get("related") or [])
+        pd.DataFrame(ingredient_rows).to_excel(writer, sheet_name="Ingredients", index=False)
+
+        pd.DataFrame(report.get("patents") or []).to_excel(writer, sheet_name="Patents", index=False)
+        pd.DataFrame(report.get("approvals") or []).to_excel(writer, sheet_name="Approvals", index=False)
+        pd.DataFrame(report.get("studies") or []).to_excel(writer, sheet_name="Studies", index=False)
+        pd.DataFrame(report.get("market_data") or []).to_excel(
+            writer, sheet_name="Market, Sales & Share", index=False
+        )
+
+    buffer.seek(0)
+    return buffer.read()

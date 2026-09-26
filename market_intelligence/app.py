@@ -12,6 +12,7 @@ import streamlit as st
 
 from analysis.cost_model import break_even_volume, estimated_cogs, gross_margin
 from analysis.entity_resolution import cluster_entities, cluster_entities_with_members
+from analysis.full_report import build_full_report
 from analysis.knowledge_graph import build_product_graph, graph_summary, graph_to_edge_list
 from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
 from analysis.product_profile import build_profile
@@ -84,7 +85,7 @@ from processing.taxonomy import (
     STAGE_GATE_DECISIONS,
     STAGE_GATE_STAGES,
 )
-from reports.excel_report import build_excel_report
+from reports.excel_report import build_excel_report, build_full_report_excel
 from reports.pdf_report import build_pdf_report
 from search_pipeline import run_search
 
@@ -244,6 +245,64 @@ with search_tab:
                 data=pdf_bytes,
                 file_name=f"{query.replace(' ', '_')}_report.pdf",
                 mime="application/pdf",
+            )
+
+            st.divider()
+            st.subheader("Full report")
+            st.caption(
+                "Consolidates this search into one report — product comparison, "
+                "ingredients, patents, approvals, clinical studies, and any stored "
+                "Market Data rows matching this query (market analysis, sales, "
+                "market share). Every section pulls from data already in the "
+                "platform; a section with nothing stored shows empty rather than "
+                "an estimate."
+            )
+
+            stored_market_rows = [dict(r) for r in fetch_market_data()]
+            full_report = build_full_report(query, df.to_dict("records"), stored_market_rows)
+
+            report_sections = [
+                ("Product comparison", full_report["product_comparison"]),
+                ("Patents", full_report["patents"]),
+                ("Approvals", full_report["approvals"]),
+                ("Clinical studies", full_report["studies"]),
+                ("Market analysis / sales / market share", full_report["market_data"]),
+            ]
+            for label, rows in report_sections:
+                with st.expander(f"{label} ({len(rows)})", expanded=bool(rows)):
+                    if rows:
+                        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                    else:
+                        st.caption("Nothing found for this query in this section.")
+
+            ingredient_section = full_report["ingredients"]
+            with st.expander(
+                f"Ingredients ({(1 if ingredient_section['exact_match'] else 0) + len(ingredient_section['related'])})",
+                expanded=bool(ingredient_section["exact_match"] or ingredient_section["related"]),
+            ):
+                if ingredient_section["exact_match"]:
+                    st.write("**Exact match:**", ingredient_section["exact_match"])
+                if ingredient_section["related"]:
+                    st.dataframe(
+                        pd.DataFrame(ingredient_section["related"]),
+                        use_container_width=True, hide_index=True,
+                    )
+                if not ingredient_section["exact_match"] and not ingredient_section["related"]:
+                    st.caption("No ingredient reference entry matches this query.")
+
+            if not full_report["market_data"]:
+                st.caption(
+                    "No Market Data rows are tagged with a matching category yet — "
+                    "add them in the Market Data tab (manual entry or licensed "
+                    "upload) to have market/sales/share figures show up here."
+                )
+
+            full_report_excel = build_full_report_excel(full_report, query)
+            st.download_button(
+                "Download full report (Excel, all sections)",
+                data=full_report_excel,
+                file_name=f"{query.replace(' ', '_')}_full_report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
     st.divider()
