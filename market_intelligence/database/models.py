@@ -203,4 +203,98 @@ CREATE TABLE IF NOT EXISTS field_evidence (
 );
 
 CREATE INDEX IF NOT EXISTS idx_field_evidence_entity ON field_evidence(entity_type, entity_id);
+
+CREATE TABLE IF NOT EXISTS clinical_studies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER REFERENCES products(id),
+    registry_name TEXT,
+    registry_id TEXT,
+    study_title TEXT NOT NULL,
+    study_type TEXT,
+    status TEXT,
+    intervention TEXT,
+    condition_summary TEXT,
+    sponsor TEXT,
+    country TEXT,
+    evidence_level TEXT,
+    source_url TEXT,
+    added_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_clinical_studies_product ON clinical_studies(product_id);
+CREATE INDEX IF NOT EXISTS idx_clinical_studies_registry_id ON clinical_studies(registry_id);
+
+CREATE TABLE IF NOT EXISTS patents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER REFERENCES products(id),
+    company_id INTEGER REFERENCES companies(id),
+    patent_number TEXT NOT NULL,
+    jurisdiction TEXT,
+    title TEXT,
+    applicant TEXT,
+    inventors TEXT,
+    publication_date TEXT,
+    legal_status TEXT,
+    patent_type TEXT,
+    claim_summary TEXT,
+    source_url TEXT,
+    added_at TEXT,
+    UNIQUE(patent_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_patents_product ON patents(product_id);
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER REFERENCES companies(id),
+    supplier_name TEXT NOT NULL,
+    supplier_type TEXT,
+    material_category TEXT,
+    country TEXT,
+    gmp_status TEXT,
+    iso_certifications TEXT,
+    regulatory_regions TEXT,
+    technical_capability TEXT,
+    notes TEXT,
+    source_url TEXT,
+    verification_status TEXT DEFAULT 'awaiting_review',
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS supplier_materials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id),
+    ingredient_id INTEGER REFERENCES ingredients(id),
+    trade_name TEXT,
+    grade_name TEXT,
+    catalog_number TEXT,
+    minimum_order_quantity TEXT,
+    price TEXT,
+    currency TEXT,
+    lead_time TEXT,
+    coa_available INTEGER DEFAULT 0,
+    source_url TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_materials_supplier ON supplier_materials(supplier_id);
+
+CREATE TABLE IF NOT EXISTS competitor_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER REFERENCES companies(id),
+    product_id INTEGER REFERENCES products(id),
+    strategic_segment TEXT,
+    target_customer TEXT,
+    price_position TEXT,
+    clinical_positioning TEXT,
+    technology_position TEXT,
+    geographic_presence TEXT,
+    evidence_strength TEXT,
+    competitive_advantage TEXT,
+    competitive_weakness TEXT,
+    threat_level TEXT,
+    analyst TEXT,
+    last_reviewed TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_competitor_profiles_company ON competitor_profiles(company_id);
 """

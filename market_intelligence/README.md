@@ -52,7 +52,15 @@ market estimate or a discovery-source lead.
   reference table (INCI names, CAS numbers where the ingredient is a
   single compound, correctly no CAS number for exosome/EV preparations)
   and a controlled taxonomy (product types, regulatory categories,
-  ingredient roles, company roles) so free-text values don't drift.
+  ingredient roles, company roles) so free-text values don't drift. A
+  promotion also creates a `clinical_studies` record for any
+  ClinicalTrials.gov cluster member and a `patents` record for any EPO
+  patent cluster member, each deduplicated by registry/patent number so
+  re-promoting the same trial or patent twice doesn't double it up.
+  Includes manual-entry forms for suppliers, competitor profiles, and
+  regulatory records from jurisdictions with no connector here (TGA,
+  MFDS, PMDA), so those gaps are filled by hand with a source rather
+  than left silent.
 - Streamlit UI with Excel and PDF export
 
 Commercial market-data sources (IQVIA, Euromonitor, Mintel, etc.) are not
@@ -86,21 +94,29 @@ This app is built against a larger target architecture (source layer →
 data management → knowledge database → analysis → decision support →
 reports/monitoring). Following that design's own stated build order:
 
-**Built (its "first priority" list):** product/company identity with
-role separation, product aliases, an ingredient/composition registry,
+**Built ("first priority"):** product/company identity with role
+separation, product aliases, an ingredient/composition registry,
 field-level citations, official regulatory connectors, document
 ingestion, Excel/PDF export.
 
-**Deferred (its "second/third/fourth priority" lists, not started):**
+**Built ("second priority", partial):** clinical-study and patent
+records wired into the registry from the existing ClinicalTrials.gov
+and EPO connectors; a manual-entry supplier database and
+supplier-materials table; competitor profiles; manual regulatory-record
+entry for jurisdictions with no connector. **Not built** from this
+tier: actual TGA/MFDS/PMDA/KIPRIS connectors (still blocked or
+undocumented, per the limitations below) and trademark search (no free
+API found).
+
+**Deferred (its "third/fourth priority" lists, not started):**
 formulation development (QTPP, CQAs, CPPs, control strategy), stability
-and batch management, supplier/licensing database, cost modeling,
+and batch management, licensing-partner scoring, cost modeling,
 stage-gate workflow, a real risk-management system, a knowledge graph,
 semantic search, scheduled/automated monitoring, multi-user access and
-audit trails, and connectors to TGA, MFDS, PMDA, KIPRIS, and paid market
-data providers (IQVIA, Euromonitor, Mintel, etc.). Building all of this
-in one pass would mean a lot of thin, undertested surface area; the
-priority order in the design doc is the intended sequence for adding
-the rest.
+audit trails, and paid market data providers (IQVIA, Euromonitor,
+Mintel, etc.). Building all of this in one pass would mean a lot of
+thin, undertested surface area; the priority order in the design doc is
+the intended sequence for adding the rest.
 
 ## Known limitations
 

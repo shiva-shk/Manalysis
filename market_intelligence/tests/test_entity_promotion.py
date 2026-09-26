@@ -5,7 +5,9 @@ import pytest
 
 from database.registry_db import (
     fetch_aliases,
+    fetch_clinical_studies,
     fetch_field_evidence,
+    fetch_patents,
     fetch_product_companies,
     fetch_regulatory_records,
 )
@@ -25,6 +27,21 @@ MEMBERS = [
         "regulatory_status": None, "identifier": None,
         "source_name": "PubMed / Europe PMC", "source_url": "https://example.com/2",
         "source_type": "scientific", "evidence_score": 0.45,
+    },
+    {
+        "title": "Trial of Example Filler for scar treatment", "company": "Example Hospital",
+        "country": "Germany", "entity_type": "clinical_study", "category": "clinical_trial",
+        "regulatory_status": "RECRUITING", "identifier": "NCT01234567",
+        "entity_name": "Example Filler injection",
+        "source_name": "ClinicalTrials.gov", "source_url": "https://example.com/3",
+        "source_type": "official", "evidence_score": 0.95,
+    },
+    {
+        "title": "Cross-linked composition for Example Filler", "company": "Example Co",
+        "country": "EP", "entity_type": "patent", "category": "patent",
+        "regulatory_status": "Published 20200101", "identifier": "EP1234567A1",
+        "source_name": "EPO Open Patent Services", "source_url": "https://example.com/4",
+        "source_type": "official", "evidence_score": 0.90,
     },
 ]
 
@@ -46,8 +63,8 @@ def test_promote_cluster_creates_product_alias_and_company(db_path):
     assert "Example Filler Injectable" in alias_names
 
     companies = fetch_product_companies(product_id, db_path=db_path)
-    assert len(companies) == 1
-    assert companies[0]["company_name"] == "Example Co"
+    company_names = {c["company_name"] for c in companies}
+    assert company_names == {"Example Co", "Example Hospital"}
 
 
 def test_promote_cluster_creates_regulatory_record_for_official_member(db_path):
@@ -80,3 +97,25 @@ def test_registry_completeness_flags_missing_regulatory_evidence(db_path):
 def test_promote_empty_cluster_raises(db_path):
     with pytest.raises(ValueError):
         promote_cluster("Nothing", [], db_path=db_path)
+
+
+def test_promote_cluster_creates_clinical_study(db_path):
+    product_id = promote_cluster("Example Filler", MEMBERS, analyst="tester", db_path=db_path)
+    studies = fetch_clinical_studies(product_id, db_path=db_path)
+    assert len(studies) == 1
+    assert studies[0]["registry_id"] == "NCT01234567"
+    assert studies[0]["sponsor"] == "Example Hospital"
+
+
+def test_promote_cluster_creates_patent_record(db_path):
+    product_id = promote_cluster("Example Filler", MEMBERS, analyst="tester", db_path=db_path)
+    patents = fetch_patents(product_id, db_path=db_path)
+    assert len(patents) == 1
+    assert patents[0]["patent_number"] == "EP1234567A1"
+
+
+def test_registry_completeness_counts_studies_and_patents(db_path):
+    product_id = promote_cluster("Example Filler", MEMBERS, analyst="tester", db_path=db_path)
+    completeness = registry_completeness(product_id, db_path=db_path)
+    assert completeness["clinical_study_count"] == 1
+    assert completeness["patent_count"] == 1

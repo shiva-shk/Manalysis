@@ -26,13 +26,23 @@ from database.db import (
     save_results,
 )
 from database.registry_db import (
+    add_competitor_profile,
+    add_regulatory_record,
+    add_supplier,
+    add_supplier_material,
     fetch_aliases,
+    fetch_clinical_studies,
+    fetch_competitor_profiles,
+    fetch_companies,
     fetch_field_evidence,
     fetch_ingredients,
+    fetch_patents,
     fetch_product_companies,
     fetch_product_ingredients,
     fetch_products,
     fetch_regulatory_records,
+    fetch_suppliers,
+    fetch_supplier_materials,
     link_product_ingredient,
 )
 from processing.document_ingest import ingest_pdf
@@ -401,8 +411,9 @@ with registry_tab:
         "here counts as verified."
     )
 
-    promote_subtab, browse_subtab, ingredients_subtab = st.tabs(
-        ["Promote a cluster", "Browse products", "Ingredients"]
+    (promote_subtab, browse_subtab, ingredients_subtab,
+     suppliers_subtab, competitors_subtab) = st.tabs(
+        ["Promote a cluster", "Browse products", "Ingredients", "Suppliers", "Competitors"]
     )
 
     with promote_subtab:
@@ -475,6 +486,41 @@ with registry_tab:
             else:
                 st.caption("None yet — this product has no regulatory-tier evidence attached.")
 
+            with st.expander("Add a regulatory record manually"):
+                st.caption(
+                    "For jurisdictions without a connector here (TGA, MFDS, PMDA) — enter "
+                    "what you found by hand, with its own source, rather than leaving the "
+                    "gap silent."
+                )
+                with st.form("manual_regulatory_form"):
+                    jurisdiction = st.text_input("Jurisdiction (e.g. AU, KR, JP)")
+                    authority = st.text_input("Authority (e.g. TGA, MFDS, PMDA)")
+                    status = st.text_input("Status")
+                    registration_number = st.text_input("Registration/approval number")
+                    manual_source_url = st.text_input("Source URL")
+                    manual_submitted = st.form_submit_button("Add record")
+                if manual_submitted and jurisdiction:
+                    add_regulatory_record(
+                        selected_id, jurisdiction=jurisdiction, authority=authority,
+                        status=status or None, registration_number=registration_number or None,
+                        source_url=manual_source_url or None, source_type="analyst_manual_entry",
+                    )
+                    st.success("Added — refresh to see it above.")
+
+            clinical_studies = fetch_clinical_studies(selected_id)
+            st.write(f"**Clinical studies** ({len(clinical_studies)})")
+            if clinical_studies:
+                st.dataframe(pd.DataFrame([dict(s) for s in clinical_studies]), use_container_width=True, hide_index=True)
+            else:
+                st.caption("None promoted yet — clinical_study-type cluster members become studies automatically on promotion.")
+
+            product_patents = fetch_patents(selected_id)
+            st.write(f"**Patents** ({len(product_patents)})")
+            if product_patents:
+                st.dataframe(pd.DataFrame([dict(p) for p in product_patents]), use_container_width=True, hide_index=True)
+            else:
+                st.caption("None promoted yet — patent-type cluster members become patent records automatically on promotion.")
+
             st.write(f"**Ingredients** ({len(prod_ingredients)})")
             all_ingredients = fetch_ingredients()
             if all_ingredients:
@@ -517,3 +563,92 @@ with registry_tab:
             st.dataframe(pd.DataFrame([dict(i) for i in ingredients]), use_container_width=True, hide_index=True)
         else:
             st.info("No ingredients in the registry yet.")
+
+    with suppliers_subtab:
+        st.caption(
+            "Manual entry only — no supplier directory API exists to connect here. "
+            "Use this for raw-material suppliers you've identified through research, "
+            "trade shows, or direct outreach."
+        )
+        with st.form("add_supplier_form"):
+            supplier_name = st.text_input("Supplier name*")
+            s_col1, s_col2 = st.columns(2)
+            supplier_type = s_col1.text_input("Supplier type (e.g. API supplier, CDMO)")
+            country = s_col2.text_input("Country")
+            gmp_status = s_col1.text_input("GMP status")
+            material_category = s_col2.text_input("Material category")
+            supplier_source_url = st.text_input("Source URL")
+            supplier_submitted = st.form_submit_button("Add supplier")
+        if supplier_submitted and supplier_name:
+            add_supplier(
+                supplier_name, supplier_type=supplier_type or None, country=country or None,
+                gmp_status=gmp_status or None, material_category=material_category or None,
+                source_url=supplier_source_url or None,
+            )
+            st.success("Supplier added.")
+
+        suppliers = fetch_suppliers()
+        if suppliers:
+            supplier_df = pd.DataFrame([dict(s) for s in suppliers])
+            st.dataframe(supplier_df, use_container_width=True, hide_index=True)
+
+            sel_supplier_id = st.selectbox(
+                "Inspect a supplier's materials",
+                options=supplier_df["id"].tolist(),
+                format_func=lambda sid: supplier_df.loc[supplier_df["id"] == sid, "supplier_name"].iloc[0],
+            )
+            with st.form("add_supplier_material_form"):
+                trade_name = st.text_input("Trade/grade name")
+                catalog_number = st.text_input("Catalog number")
+                moq = st.text_input("Minimum order quantity")
+                material_submitted = st.form_submit_button("Add material")
+            if material_submitted and trade_name:
+                add_supplier_material(
+                    sel_supplier_id, trade_name=trade_name,
+                    catalog_number=catalog_number or None, minimum_order_quantity=moq or None,
+                )
+                st.success("Material added — refresh to see it below.")
+
+            materials = fetch_supplier_materials(sel_supplier_id)
+            if materials:
+                st.dataframe(pd.DataFrame([dict(m) for m in materials]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No suppliers added yet.")
+
+    with competitors_subtab:
+        st.caption(
+            "A structured competitive-positioning note per company — separate from raw "
+            "search results, since this is analyst judgment, not a sourced fact."
+        )
+        companies = fetch_companies()
+        if not companies:
+            st.info("No companies in the registry yet — promote a product cluster first.")
+        else:
+            company_df = pd.DataFrame([dict(c) for c in companies])
+            with st.form("add_competitor_profile_form"):
+                comp_company_id = st.selectbox(
+                    "Company", options=company_df["id"].tolist(),
+                    format_func=lambda cid: company_df.loc[company_df["id"] == cid, "canonical_name"].iloc[0],
+                )
+                c1, c2 = st.columns(2)
+                strategic_segment = c1.text_input("Strategic segment")
+                threat_level = c2.text_input("Threat level")
+                competitive_advantage = st.text_area("Competitive advantage")
+                competitive_weakness = st.text_area("Competitive weakness")
+                profile_analyst = st.text_input("Your name")
+                profile_submitted = st.form_submit_button("Save competitor profile")
+            if profile_submitted:
+                add_competitor_profile(
+                    comp_company_id, strategic_segment=strategic_segment or None,
+                    threat_level=threat_level or None,
+                    competitive_advantage=competitive_advantage or None,
+                    competitive_weakness=competitive_weakness or None,
+                    analyst=profile_analyst or None,
+                )
+                st.success("Profile saved.")
+
+            profiles = fetch_competitor_profiles()
+            if profiles:
+                st.dataframe(pd.DataFrame([dict(p) for p in profiles]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No competitor profiles yet.")

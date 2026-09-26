@@ -212,3 +212,136 @@ def fetch_field_evidence(entity_type: str, entity_id: int, db_path: str = DB_PAT
             "ORDER BY field_name",
             (entity_type, entity_id),
         ).fetchall()
+
+
+# --- clinical studies ---
+
+def add_clinical_study(study_title: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("added_at", _now())
+    cols = ["study_title"] + list(fields.keys())
+    vals = [study_title] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO clinical_studies ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_clinical_studies(product_id: int | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if product_id is not None:
+            return conn.execute(
+                "SELECT * FROM clinical_studies WHERE product_id = ? ORDER BY added_at DESC",
+                (product_id,),
+            ).fetchall()
+        return conn.execute("SELECT * FROM clinical_studies ORDER BY added_at DESC").fetchall()
+
+
+def clinical_study_exists(registry_id: str, db_path: str = DB_PATH) -> bool:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT 1 FROM clinical_studies WHERE registry_id = ?", (registry_id,)
+        ).fetchone() is not None
+
+
+# --- patents ---
+
+def upsert_patent(patent_number: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("added_at", _now())
+    with get_connection(db_path) as conn:
+        existing = conn.execute(
+            "SELECT id FROM patents WHERE patent_number = ?", (patent_number,)
+        ).fetchone()
+        if existing:
+            return existing["id"]
+
+        cols = ["patent_number"] + list(fields.keys())
+        vals = [patent_number] + list(fields.values())
+        conn.execute(
+            f"INSERT INTO patents ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_patents(product_id: int | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if product_id is not None:
+            return conn.execute(
+                "SELECT * FROM patents WHERE product_id = ? ORDER BY publication_date DESC",
+                (product_id,),
+            ).fetchall()
+        return conn.execute("SELECT * FROM patents ORDER BY added_at DESC").fetchall()
+
+
+# --- suppliers ---
+
+def add_supplier(supplier_name: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("created_at", _now())
+    cols = ["supplier_name"] + list(fields.keys())
+    vals = [supplier_name] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO suppliers ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_suppliers(db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute("SELECT * FROM suppliers ORDER BY supplier_name").fetchall()
+
+
+def add_supplier_material(supplier_id: int, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    cols = ["supplier_id"] + list(fields.keys())
+    vals = [supplier_id] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO supplier_materials ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_supplier_materials(supplier_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT sm.*, i.preferred_name AS ingredient_name FROM supplier_materials sm "
+            "LEFT JOIN ingredients i ON i.id = sm.ingredient_id WHERE sm.supplier_id = ?",
+            (supplier_id,),
+        ).fetchall()
+
+
+# --- competitor profiles ---
+
+def add_competitor_profile(company_id: int, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("last_reviewed", _now())
+    cols = ["company_id"] + list(fields.keys())
+    vals = [company_id] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO competitor_profiles ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_competitor_profiles(db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT cp.*, c.canonical_name AS company_name FROM competitor_profiles cp "
+            "JOIN companies c ON c.id = cp.company_id ORDER BY cp.last_reviewed DESC"
+        ).fetchall()

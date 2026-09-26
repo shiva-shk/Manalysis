@@ -11,16 +11,21 @@ the system should never make silently.
 
 from config import DB_PATH
 from database.registry_db import (
+    add_clinical_study,
     add_field_evidence,
     add_product_alias,
     add_regulatory_record,
+    clinical_study_exists,
     create_product,
     fetch_regulatory_records,
     link_product_company,
     upsert_company,
+    upsert_patent,
 )
 
 REGULATORY_ENTITY_TYPES = {"medical_device", "drug_product"}
+CLINICAL_ENTITY_TYPES = {"clinical_study"}
+PATENT_ENTITY_TYPES = {"patent"}
 
 
 def promote_cluster(canonical_name: str, members: list[dict], analyst: str = "unattributed",
@@ -88,6 +93,36 @@ def promote_cluster(canonical_name: str, members: list[dict], analyst: str = "un
                 source_type=member.get("source_type"),
             )
 
+        if member.get("entity_type") in CLINICAL_ENTITY_TYPES:
+            registry_id = member.get("identifier")
+            if not registry_id or not clinical_study_exists(registry_id, db_path=db_path):
+                add_clinical_study(
+                    member.get("title") or "Untitled study",
+                    db_path=db_path,
+                    product_id=product_id,
+                    registry_name=member.get("source_name"),
+                    registry_id=registry_id,
+                    status=member.get("regulatory_status"),
+                    intervention=member.get("entity_name"),
+                    condition_summary=member.get("summary"),
+                    sponsor=member.get("company"),
+                    country=member.get("country"),
+                    evidence_level="registered_trial",
+                    source_url=member.get("source_url"),
+                )
+
+        if member.get("entity_type") in PATENT_ENTITY_TYPES and member.get("identifier"):
+            upsert_patent(
+                member["identifier"],
+                db_path=db_path,
+                product_id=product_id,
+                jurisdiction=member.get("country"),
+                title=member.get("title"),
+                applicant=member.get("company"),
+                publication_date=member.get("regulatory_status"),
+                source_url=member.get("source_url"),
+            )
+
         for field_name in ("title", "company", "country", "regulatory_status", "category"):
             value = member.get(field_name)
             if value:
@@ -120,11 +155,18 @@ def _infer_jurisdiction(member: dict) -> str:
 
 def registry_completeness(product_id: int, db_path: str = DB_PATH) -> dict:
     """A quick sanity check an analyst can run after promoting: does this
-    product have any regulatory backing at all, or is it evidence-free?"""
+    product have any regulatory backing, clinical evidence, or patent
+    coverage at all, or is it evidence-free?"""
+    from database.registry_db import fetch_clinical_studies, fetch_patents
+
     records = fetch_regulatory_records(product_id, db_path=db_path)
+    studies = fetch_clinical_studies(product_id, db_path=db_path)
+    patents = fetch_patents(product_id, db_path=db_path)
     return {
         "product_id": product_id,
         "regulatory_record_count": len(records),
         "jurisdictions": sorted({r["jurisdiction"] for r in records}),
         "has_any_regulatory_evidence": len(records) > 0,
+        "clinical_study_count": len(studies),
+        "patent_count": len(patents),
     }
