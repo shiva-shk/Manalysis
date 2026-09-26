@@ -345,3 +345,193 @@ def fetch_competitor_profiles(db_path: str = DB_PATH) -> list[sqlite3.Row]:
             "SELECT cp.*, c.canonical_name AS company_name FROM competitor_profiles cp "
             "JOIN companies c ON c.id = cp.company_id ORDER BY cp.last_reviewed DESC"
         ).fetchall()
+
+
+# --- QTPP / CQA / CPP / control strategy ---
+
+def add_qttp(product_id: int, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("created_at", _now())
+    cols = ["product_id"] + list(fields.keys())
+    vals = [product_id] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO qttp ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})", vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_qttp(product_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM qttp WHERE product_id = ? ORDER BY created_at DESC", (product_id,)
+        ).fetchall()
+
+
+def add_cqa(product_id: int, attribute_name: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    cols = ["product_id", "attribute_name"] + list(fields.keys())
+    vals = [product_id, attribute_name] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO critical_quality_attributes ({', '.join(cols)}) "
+            f"VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_cqas(product_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM critical_quality_attributes WHERE product_id = ?", (product_id,)
+        ).fetchall()
+
+
+def add_cpp(product_id: int, parameter_name: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    cols = ["product_id", "parameter_name"] + list(fields.keys())
+    vals = [product_id, parameter_name] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO critical_process_parameters ({', '.join(cols)}) "
+            f"VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_cpps(product_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM critical_process_parameters WHERE product_id = ?", (product_id,)
+        ).fetchall()
+
+
+def add_control(product_id: int, test_or_control: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    cols = ["product_id", "test_or_control"] + list(fields.keys())
+    vals = [product_id, test_or_control] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO control_strategy ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_controls(product_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM control_strategy WHERE product_id = ?", (product_id,)
+        ).fetchall()
+
+
+# --- risk assessments ---
+
+def add_risk_assessment(risk_category: str, risk_event: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("created_at", _now())
+    cols = ["risk_category", "risk_event"] + list(fields.keys())
+    vals = [risk_category, risk_event] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO risk_assessments ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_risk_assessments(product_id: int | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if product_id is not None:
+            return conn.execute(
+                "SELECT * FROM risk_assessments WHERE product_id = ? "
+                "ORDER BY risk_priority_number DESC",
+                (product_id,),
+            ).fetchall()
+        return conn.execute(
+            "SELECT * FROM risk_assessments ORDER BY risk_priority_number DESC"
+        ).fetchall()
+
+
+# --- stage-gate decisions ---
+
+def add_stage_gate_decision(product_id: int, stage: str, decision: str,
+                             db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("decision_date", _now())
+    cols = ["product_id", "stage", "decision"] + list(fields.keys())
+    vals = [product_id, stage, decision] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO stage_gate_decisions ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_stage_gate_decisions(product_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM stage_gate_decisions WHERE product_id = ? ORDER BY decision_date DESC",
+            (product_id,),
+        ).fetchall()
+
+
+def current_stage(product_id: int, db_path: str = DB_PATH) -> sqlite3.Row | None:
+    """Most recent stage-gate decision for a product, or None if it has
+    never been through a gate."""
+    decisions = fetch_stage_gate_decisions(product_id, db_path=db_path)
+    return decisions[0] if decisions else None
+
+
+# --- cost model ---
+
+def add_cost_model(product_id: int, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("created_at", _now())
+    cols = ["product_id"] + list(fields.keys())
+    vals = [product_id] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO cost_models ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_cost_models(product_id: int, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM cost_models WHERE product_id = ? ORDER BY created_at DESC",
+            (product_id,),
+        ).fetchall()
+
+
+# --- portfolio gaps ---
+
+def add_portfolio_gap(category: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("created_at", _now())
+    cols = ["category"] + list(fields.keys())
+    vals = [category] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO portfolio_gaps ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+            vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_portfolio_gaps(db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute("SELECT * FROM portfolio_gaps ORDER BY created_at DESC").fetchall()

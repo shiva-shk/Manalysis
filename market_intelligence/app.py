@@ -10,9 +10,11 @@ automatically.
 import pandas as pd
 import streamlit as st
 
+from analysis.cost_model import break_even_volume, estimated_cogs, gross_margin
 from analysis.entity_resolution import cluster_entities, cluster_entities_with_members
 from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
 from analysis.product_profile import build_profile
+from analysis.risk_scoring import check_stop_criteria, risk_acceptability, risk_priority_number
 from analysis.summary import confidence_breakdown, summarize_results
 from database.db import (
     fetch_all_results,
@@ -27,20 +29,36 @@ from database.db import (
 )
 from database.registry_db import (
     add_competitor_profile,
+    add_control,
+    add_cost_model,
+    add_cpp,
+    add_cqa,
+    add_portfolio_gap,
+    add_qttp,
     add_regulatory_record,
+    add_risk_assessment,
+    add_stage_gate_decision,
     add_supplier,
     add_supplier_material,
     fetch_aliases,
     fetch_clinical_studies,
     fetch_competitor_profiles,
     fetch_companies,
+    fetch_controls,
+    fetch_cost_models,
+    fetch_cpps,
+    fetch_cqas,
     fetch_field_evidence,
     fetch_ingredients,
     fetch_patents,
+    fetch_portfolio_gaps,
     fetch_product_companies,
     fetch_product_ingredients,
     fetch_products,
+    fetch_qttp,
     fetch_regulatory_records,
+    fetch_risk_assessments,
+    fetch_stage_gate_decisions,
     fetch_suppliers,
     fetch_supplier_materials,
     link_product_ingredient,
@@ -52,7 +70,15 @@ from processing.ingredient_dictionary import lookup_ingredient
 from processing.ingredient_seed_data import seed_ingredients
 from processing.market_data import ALL_FIELDS, prepare_rows
 from processing.monitoring import find_new_results
-from processing.taxonomy import PRODUCT_TYPES, REGULATORY_CATEGORIES
+from processing.taxonomy import (
+    CQA_CATEGORIES,
+    PRODUCT_TYPES,
+    RECOMMENDED_ACTIONS,
+    REGULATORY_CATEGORIES,
+    RISK_CATEGORIES,
+    STAGE_GATE_DECISIONS,
+    STAGE_GATE_STAGES,
+)
 from reports.excel_report import build_excel_report
 from reports.pdf_report import build_pdf_report
 from search_pipeline import run_search
@@ -67,8 +93,10 @@ st.caption(
     "manually in the Market Data tab, each with its own source and confidence."
 )
 
-search_tab, market_tab, documents_tab, opportunity_tab, entities_tab, monitoring_tab, registry_tab = st.tabs(
-    ["Search", "Market Data", "Documents", "Opportunity Score", "Entities", "Monitoring", "Registry"]
+(search_tab, market_tab, documents_tab, opportunity_tab, entities_tab, monitoring_tab,
+ registry_tab, development_tab) = st.tabs(
+    ["Search", "Market Data", "Documents", "Opportunity Score", "Entities", "Monitoring",
+     "Registry", "Development"]
 )
 
 with search_tab:
@@ -652,3 +680,216 @@ with registry_tab:
                 st.dataframe(pd.DataFrame([dict(p) for p in profiles]), use_container_width=True, hide_index=True)
             else:
                 st.info("No competitor profiles yet.")
+
+with development_tab:
+    st.subheader("Product development")
+    st.caption(
+        "Formulation development, risk management, stage-gate tracking, cost modeling, "
+        "and portfolio-gap analysis — all tied to a promoted product from the Registry tab. "
+        "A market-attractive product can still fail a stop criterion here; the two are "
+        "checked independently on purpose."
+    )
+
+    dev_products = fetch_products()
+    if not dev_products:
+        st.info("No products promoted yet — go to the Registry tab first.")
+    else:
+        dev_product_df = pd.DataFrame([dict(p) for p in dev_products])
+        dev_product_id = st.selectbox(
+            "Product",
+            options=dev_product_df["id"].tolist(),
+            format_func=lambda pid: dev_product_df.loc[dev_product_df["id"] == pid, "canonical_name"].iloc[0],
+            key="dev_product_select",
+        )
+
+        (qttp_subtab, risk_subtab, stage_gate_subtab,
+         cost_subtab, portfolio_subtab) = st.tabs(
+            ["QTPP / CQA / CPP", "Risk Assessment", "Stage Gate", "Cost Model", "Portfolio Gaps"]
+        )
+
+        with qttp_subtab:
+            st.write("**Quality Target Product Profile**")
+            with st.form("qttp_form"):
+                q1, q2 = st.columns(2)
+                dosage_form = q1.text_input("Dosage form")
+                route = q2.text_input("Route")
+                strength = q1.text_input("Strength")
+                sterility_requirement = q2.text_input("Sterility requirement")
+                qttp_submitted = st.form_submit_button("Save QTTP")
+            if qttp_submitted:
+                add_qttp(dev_product_id, dosage_form=dosage_form or None, route=route or None,
+                          strength=strength or None, sterility_requirement=sterility_requirement or None)
+                st.success("Saved.")
+            existing_qttp = fetch_qttp(dev_product_id)
+            if existing_qttp:
+                st.dataframe(pd.DataFrame([dict(q) for q in existing_qttp]), use_container_width=True, hide_index=True)
+
+            st.write("**Critical Quality Attributes**")
+            with st.form("cqa_form"):
+                attribute_name = st.text_input("Attribute name")
+                c1, c2 = st.columns(2)
+                attribute_category = c1.selectbox("Category", options=[""] + CQA_CATEGORIES)
+                criticality = c2.text_input("Criticality")
+                acceptable_range = st.text_input("Acceptable range")
+                cqa_submitted = st.form_submit_button("Add CQA")
+            if cqa_submitted and attribute_name:
+                add_cqa(dev_product_id, attribute_name, attribute_category=attribute_category or None,
+                         criticality=criticality or None, acceptable_range=acceptable_range or None)
+                st.success("Added.")
+            cqas = fetch_cqas(dev_product_id)
+            if cqas:
+                st.dataframe(pd.DataFrame([dict(c) for c in cqas]), use_container_width=True, hide_index=True)
+
+            st.write("**Critical Process Parameters**")
+            with st.form("cpp_form"):
+                parameter_name = st.text_input("Parameter name")
+                process_step = st.text_input("Process step")
+                cpp_range = st.text_input("Acceptable range", key="cpp_range")
+                cpp_submitted = st.form_submit_button("Add CPP")
+            if cpp_submitted and parameter_name:
+                add_cpp(dev_product_id, parameter_name, process_step=process_step or None,
+                         acceptable_range=cpp_range or None)
+                st.success("Added.")
+            cpps = fetch_cpps(dev_product_id)
+            if cpps:
+                st.dataframe(pd.DataFrame([dict(c) for c in cpps]), use_container_width=True, hide_index=True)
+
+            st.write("**Control Strategy**")
+            with st.form("control_form"):
+                test_or_control = st.text_input("Test or control")
+                acceptance_criteria = st.text_input("Acceptance criteria")
+                control_submitted = st.form_submit_button("Add control")
+            if control_submitted and test_or_control:
+                add_control(dev_product_id, test_or_control, acceptance_criteria=acceptance_criteria or None)
+                st.success("Added.")
+            controls = fetch_controls(dev_product_id)
+            if controls:
+                st.dataframe(pd.DataFrame([dict(c) for c in controls]), use_container_width=True, hide_index=True)
+
+        with risk_subtab:
+            st.caption(
+                "Risk priority number = severity x occurrence x detectability (1-5 each, 1-125 total). "
+                "A stop-criterion match overrides any opportunity score — it's checked "
+                "independently, not folded into a single number."
+            )
+            with st.form("risk_form"):
+                risk_category = st.selectbox("Risk category", options=RISK_CATEGORIES)
+                risk_event = st.text_input("Risk event")
+                effect = st.text_area("Effect")
+                r1, r2, r3 = st.columns(3)
+                severity = r1.slider("Severity", 1, 5, 3)
+                occurrence = r2.slider("Occurrence", 1, 5, 3)
+                detectability = r3.slider("Detectability", 1, 5, 3)
+                existing_controls = st.text_input("Existing controls")
+                risk_submitted = st.form_submit_button("Add risk")
+            if risk_submitted and risk_event:
+                rpn = risk_priority_number(severity, occurrence, detectability)
+                add_risk_assessment(
+                    risk_category, risk_event, product_id=dev_product_id, effect=effect or None,
+                    severity=severity, occurrence=occurrence, detectability=detectability,
+                    risk_priority_number=rpn, existing_controls=existing_controls or None,
+                    residual_risk=risk_acceptability(rpn),
+                )
+                stops = check_stop_criteria([risk_event, effect])
+                if stops:
+                    st.error(f"Stop-criterion language detected: {', '.join(stops)} — review before proceeding.")
+                else:
+                    st.success(f"Added. RPN = {rpn} ({risk_acceptability(rpn)}).")
+
+            risks = fetch_risk_assessments(dev_product_id)
+            if risks:
+                st.dataframe(pd.DataFrame([dict(r) for r in risks]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No risks logged for this product yet.")
+
+        with stage_gate_subtab:
+            current = fetch_stage_gate_decisions(dev_product_id)
+            if current:
+                st.metric("Current stage", current[0]["stage"])
+                st.metric("Last decision", current[0]["decision"])
+
+            with st.form("stage_gate_form"):
+                stage = st.selectbox("Stage", options=STAGE_GATE_STAGES)
+                decision = st.selectbox("Decision", options=STAGE_GATE_DECISIONS)
+                criteria = st.text_area("Criteria required for this gate")
+                evidence = st.text_area("Evidence presented")
+                open_risks = st.text_input("Open risks")
+                decision_owner = st.text_input("Decision owner")
+                gate_submitted = st.form_submit_button("Record decision")
+            if gate_submitted:
+                add_stage_gate_decision(
+                    dev_product_id, stage, decision, criteria=criteria or None,
+                    evidence=evidence or None, open_risks=open_risks or None,
+                    decision_owner=decision_owner or None,
+                )
+                st.success("Recorded.")
+
+            history = fetch_stage_gate_decisions(dev_product_id)
+            if history:
+                st.dataframe(pd.DataFrame([dict(h) for h in history]), use_container_width=True, hide_index=True)
+
+        with cost_subtab:
+            with st.form("cost_form"):
+                scenario = st.selectbox("Scenario", options=["base_case", "optimistic_case", "conservative_case"])
+                c1, c2, c3 = st.columns(3)
+                material_cost = c1.number_input("Material cost", min_value=0.0, value=0.0)
+                packaging_cost = c2.number_input("Packaging cost", min_value=0.0, value=0.0)
+                manufacturing_cost = c3.number_input("Manufacturing cost", min_value=0.0, value=0.0)
+                analytical_cost = c1.number_input("Analytical cost", min_value=0.0, value=0.0)
+                regulatory_cost = c2.number_input("Regulatory cost", min_value=0.0, value=0.0)
+                distribution_cost = c3.number_input("Distribution cost", min_value=0.0, value=0.0)
+                target_price = st.number_input("Target price", min_value=0.0, value=0.0)
+                fixed_investment = st.number_input("Fixed launch investment (for break-even)", min_value=0.0, value=0.0)
+                cost_submitted = st.form_submit_button("Save cost model")
+
+            if cost_submitted:
+                costs = {
+                    "material_cost": material_cost, "packaging_cost": packaging_cost,
+                    "manufacturing_cost": manufacturing_cost, "analytical_cost": analytical_cost,
+                    "regulatory_cost": regulatory_cost, "distribution_cost": distribution_cost,
+                }
+                cogs = estimated_cogs(costs)
+                margin = gross_margin(target_price, cogs)
+                bev = break_even_volume(fixed_investment, target_price, cogs)
+                add_cost_model(
+                    dev_product_id, scenario=scenario, **costs,
+                    estimated_cogs=cogs, target_price=target_price or None,
+                    gross_margin=margin, break_even_volume=bev,
+                )
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Estimated COGS", cogs)
+                col2.metric("Gross margin", f"{margin:.1%}" if margin is not None else "n/a")
+                col3.metric("Break-even volume", bev if bev is not None else "n/a")
+
+            cost_models = fetch_cost_models(dev_product_id)
+            if cost_models:
+                st.dataframe(pd.DataFrame([dict(c) for c in cost_models]), use_container_width=True, hide_index=True)
+
+        with portfolio_subtab:
+            st.caption(
+                "Not tied to a single product — a portfolio gap is about a category/segment/"
+                "geography combination your team doesn't cover yet, evaluated against what "
+                "competitors already offer there."
+            )
+            with st.form("portfolio_gap_form"):
+                category = st.text_input("Category")
+                p1, p2 = st.columns(2)
+                customer_segment = p1.text_input("Customer segment")
+                geography = p2.text_input("Geography")
+                current_coverage = st.text_input("Current coverage")
+                competitor_coverage = st.text_input("Competitor coverage")
+                recommended_action = st.selectbox("Recommended action", options=[""] + RECOMMENDED_ACTIONS)
+                gap_submitted = st.form_submit_button("Add gap")
+            if gap_submitted and category:
+                add_portfolio_gap(
+                    category, customer_segment=customer_segment or None, geography=geography or None,
+                    current_coverage=current_coverage or None, competitor_coverage=competitor_coverage or None,
+                    recommended_action=recommended_action or None,
+                )
+                st.success("Added.")
+
+            gaps = fetch_portfolio_gaps()
+            if gaps:
+                st.dataframe(pd.DataFrame([dict(g) for g in gaps]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No portfolio gaps logged yet.")

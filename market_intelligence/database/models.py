@@ -297,4 +297,147 @@ CREATE TABLE IF NOT EXISTS competitor_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_competitor_profiles_company ON competitor_profiles(company_id);
+
+-- Formulation-development framework (QTPP / CQA / CPP / control strategy) --
+
+CREATE TABLE IF NOT EXISTS qttp (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    dosage_form TEXT,
+    route TEXT,
+    strength TEXT,
+    intended_use TEXT,
+    target_population TEXT,
+    container_closure TEXT,
+    stability_target TEXT,
+    sterility_requirement TEXT,
+    regulatory_target TEXT,
+    notes TEXT,
+    created_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_qttp_product ON qttp(product_id);
+
+CREATE TABLE IF NOT EXISTS critical_quality_attributes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    attribute_name TEXT NOT NULL,
+    attribute_category TEXT,
+    target TEXT,
+    acceptable_range TEXT,
+    criticality TEXT,
+    rationale TEXT,
+    analytical_method TEXT,
+    risk_level TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cqa_product ON critical_quality_attributes(product_id);
+
+CREATE TABLE IF NOT EXISTS critical_process_parameters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    process_step TEXT,
+    parameter_name TEXT NOT NULL,
+    target TEXT,
+    acceptable_range TEXT,
+    criticality TEXT,
+    monitoring_method TEXT,
+    control_strategy TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cpp_product ON critical_process_parameters(product_id);
+
+CREATE TABLE IF NOT EXISTS control_strategy (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    material_attribute TEXT,
+    process_parameter TEXT,
+    test_or_control TEXT NOT NULL,
+    acceptance_criteria TEXT,
+    sampling_plan TEXT,
+    release_or_in_process TEXT,
+    responsible_function TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_control_strategy_product ON control_strategy(product_id);
+
+-- Risk management --
+
+CREATE TABLE IF NOT EXISTS risk_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER REFERENCES products(id),
+    risk_category TEXT NOT NULL,
+    risk_event TEXT NOT NULL,
+    cause TEXT,
+    effect TEXT,
+    severity INTEGER,
+    occurrence INTEGER,
+    detectability INTEGER,
+    risk_priority_number INTEGER,
+    existing_controls TEXT,
+    additional_controls TEXT,
+    residual_risk TEXT,
+    owner TEXT,
+    status TEXT DEFAULT 'open',
+    created_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_product ON risk_assessments(product_id);
+
+-- Stage-gate workflow --
+
+CREATE TABLE IF NOT EXISTS stage_gate_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    stage TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    criteria TEXT,
+    evidence TEXT,
+    open_risks TEXT,
+    required_actions TEXT,
+    decision_owner TEXT,
+    decision_date TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_stage_gate_product ON stage_gate_decisions(product_id);
+
+-- Cost model --
+
+CREATE TABLE IF NOT EXISTS cost_models (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    scenario TEXT DEFAULT 'base_case',
+    material_cost REAL,
+    packaging_cost REAL,
+    manufacturing_cost REAL,
+    analytical_cost REAL,
+    regulatory_cost REAL,
+    distribution_cost REAL,
+    estimated_cogs REAL,
+    target_price REAL,
+    gross_margin REAL,
+    break_even_volume REAL,
+    currency TEXT DEFAULT 'USD',
+    assumptions TEXT,
+    created_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cost_models_product ON cost_models(product_id);
+
+-- Portfolio-gap analysis --
+
+CREATE TABLE IF NOT EXISTS portfolio_gaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    customer_segment TEXT,
+    geography TEXT,
+    indication TEXT,
+    current_coverage TEXT,
+    competitor_coverage TEXT,
+    market_attractiveness TEXT,
+    internal_capability TEXT,
+    recommended_action TEXT,
+    analyst TEXT,
+    created_at TEXT
+);
 """

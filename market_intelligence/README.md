@@ -83,10 +83,13 @@ pytest
 Tests cover the classifier, synonym expansion, evidence scoring,
 deduplication, connector normalization, market-data validation, document
 ingestion, opportunity scoring, product profiling, cross-query entity
-clustering, the monitoring diff logic, and the registry layer (entity
+clustering, the monitoring diff logic, the registry layer (entity
 promotion, field-level lineage, taxonomy validation, ingredient seed
-data) — all against canned data or generated fixtures, no network calls
-in the test suite.
+data, clinical studies, patents, suppliers, competitor profiles), and
+the development layer (QTPP/CQA/CPP/control strategy, risk scoring and
+stop criteria, stage-gate decisions, cost modeling, portfolio gaps) —
+all against canned data or generated fixtures, no network calls in the
+test suite.
 
 ## Architecture: what's built vs. deferred
 
@@ -108,15 +111,26 @@ tier: actual TGA/MFDS/PMDA/KIPRIS connectors (still blocked or
 undocumented, per the limitations below) and trademark search (no free
 API found).
 
-**Deferred (its "third/fourth priority" lists, not started):**
-formulation development (QTPP, CQAs, CPPs, control strategy), stability
-and batch management, licensing-partner scoring, cost modeling,
-stage-gate workflow, a real risk-management system, a knowledge graph,
-semantic search, scheduled/automated monitoring, multi-user access and
-audit trails, and paid market data providers (IQVIA, Euromonitor,
-Mintel, etc.). Building all of this in one pass would mean a lot of
-thin, undertested surface area; the priority order in the design doc is
-the intended sequence for adding the rest.
+**Built ("third priority", partial):** a Development tab per promoted
+product, backing the formulation-development framework (QTPP, CQAs,
+CPPs, control strategy), a risk-assessment log (severity x occurrence x
+detectability = risk priority number, mapped to an acceptability band,
+plus a keyword-based stop-criteria check that's independent of any
+opportunity score — a market-attractive product can still fail a stop
+criterion), stage-gate decision tracking (gate 0 through 5, with a
+"current stage" lookup), a cost model (COGS, gross margin, break-even
+volume, and a cost-shift sensitivity check), and portfolio-gap logging
+with a recommended-action taxonomy. **Not built** from this tier:
+stability and batch management (needs real lab/stability data this app
+has no way to generate), and licensing-partner scoring beyond what the
+Suppliers tab already covers.
+
+**Deferred (its "fourth priority" list, not started):** a real
+knowledge graph, semantic search, scheduled/automated monitoring,
+multi-user access and audit trails, and paid market data providers
+(IQVIA, Euromonitor, Mintel, etc.). Building all of this in one pass
+would mean a lot of thin, undertested surface area; the priority order
+in the design doc is the intended sequence for adding the rest.
 
 ## Known limitations
 

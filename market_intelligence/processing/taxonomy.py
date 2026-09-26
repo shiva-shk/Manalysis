@@ -60,6 +60,33 @@ MISSING_DATA_VALUES = [
     "conflicting_sources", "requires_document_review", "not_verified",
 ]
 
+CQA_CATEGORIES = [
+    "identity", "purity", "strength", "molecular_weight", "particle_size",
+    "viscosity", "rheology", "ph", "osmolality", "sterility", "endotoxin",
+    "potency", "degradation", "syringeability", "injectability",
+    "container_compatibility", "appearance",
+]
+
+RISK_CATEGORIES = [
+    "identity", "quality", "sterility", "endotoxin", "immunogenicity",
+    "toxicity", "clinical", "regulatory", "manufacturing", "supply_chain",
+    "patent", "commercial", "pharmacovigilance", "reputation",
+]
+
+RISK_ACCEPTABILITY = ["acceptable", "acceptable_with_controls", "requires_mitigation", "unacceptable"]
+
+STAGE_GATE_STAGES = [
+    "gate_0_opportunity_discovery", "gate_1_feasibility", "gate_2_candidate_selection",
+    "gate_3_prototype_development", "gate_4_verification_validation", "gate_5_commercialization",
+]
+
+STAGE_GATE_DECISIONS = ["go", "conditional_go", "hold", "rework", "stop"]
+
+RECOMMENDED_ACTIONS = [
+    "develop_internally", "license", "private_label", "co_develop",
+    "acquire", "monitor", "do_not_pursue",
+]
+
 DATA_QUALITY_FLAGS = [
     "source_conflict", "outdated", "incomplete", "estimated",
     "machine_extracted", "analyst_verified", "regulator_confirmed",
