@@ -13,11 +13,15 @@ from connectors.health_canada import normalize_mdall, search_mdall_devices
 from connectors.openfda import (
     normalize_openfda_devices,
     normalize_openfda_drug_labels,
+    normalize_openfda_maude,
     normalize_openfda_pma,
+    normalize_openfda_recalls,
     normalize_openfda_udi,
     search_openfda_devices,
     search_openfda_drug_labels,
+    search_openfda_maude,
     search_openfda_pma,
+    search_openfda_recalls,
     search_openfda_udi,
 )
 from connectors.patents import normalize_patents, search_patents
@@ -93,6 +97,20 @@ def run_search(
         try:
             raw = search_ema_medicines(primary_term, limit=page_size)
             all_results.extend(normalize_ema_medicines(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "openfda_recalls" in sources:
+        try:
+            raw = search_openfda_recalls(primary_term, limit=page_size)
+            all_results.extend(normalize_openfda_recalls(raw))
+        except ConnectorError as exc:
+            warnings.append(str(exc))
+
+    if "openfda_maude" in sources:
+        try:
+            raw = search_openfda_maude(primary_term, limit=page_size)
+            all_results.extend(normalize_openfda_maude(raw))
         except ConnectorError as exc:
             warnings.append(str(exc))
 

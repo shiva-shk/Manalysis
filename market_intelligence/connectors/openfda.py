@@ -20,6 +20,8 @@ DEVICE_URL = "https://api.fda.gov/device/510k.json"
 DRUG_LABEL_URL = "https://api.fda.gov/drug/label.json"
 PMA_URL = "https://api.fda.gov/device/pma.json"
 UDI_URL = "https://api.fda.gov/device/udi.json"
+RECALL_URL = "https://api.fda.gov/device/recall.json"
+MAUDE_URL = "https://api.fda.gov/device/event.json"
 
 
 def _quote(query: str) -> str:
@@ -59,6 +61,14 @@ def search_openfda_pma(query: str, limit: int = 20) -> dict:
 
 def search_openfda_udi(query: str, limit: int = 20) -> dict:
     return _get(UDI_URL, f"brand_name:{_quote(query)}", limit)
+
+
+def search_openfda_recalls(query: str, limit: int = 20) -> dict:
+    return _get(RECALL_URL, f"product_description:{_quote(query)}", limit)
+
+
+def search_openfda_maude(query: str, limit: int = 20) -> dict:
+    return _get(MAUDE_URL, f"device.generic_name:{_quote(query)}", limit)
 
 
 def normalize_openfda_devices(raw: dict) -> list[SearchResult]:
@@ -131,6 +141,60 @@ def normalize_openfda_udi(raw: dict) -> list[SearchResult]:
                 identifier=di,
                 source_name="openFDA (UDI/GUDID)",
                 source_url=f"https://api.fda.gov/device/udi.json?search=identifiers.id:{di}" if di else UDI_URL,
+                source_type="official",
+            )
+        )
+    return results
+
+
+def normalize_openfda_recalls(raw: dict) -> list[SearchResult]:
+    results = []
+    for record in raw.get("results", []):
+        results.append(
+            SearchResult(
+                title=record.get("recalling_firm", "Unnamed recall"),
+                entity_type="safety_signal",
+                entity_name=(record.get("product_description") or "")[:200] or None,
+                company=record.get("recalling_firm"),
+                country="United States",
+                category=record.get("product_code"),
+                regulatory_status=f"Recall {record.get('recall_status', '')}".strip(),
+                summary=record.get("reason_for_recall"),
+                identifier=record.get("product_res_number"),
+                source_name="openFDA (device recalls)",
+                source_url="https://api.fda.gov/device/recall.json",
+                source_type="official",
+            )
+        )
+    return results
+
+
+def normalize_openfda_maude(raw: dict) -> list[SearchResult]:
+    results = []
+    for record in raw.get("results", []):
+        devices = record.get("device", [])
+        device = devices[0] if devices else {}
+        brand_name = device.get("brand_name") or device.get("generic_name") or "Unnamed device"
+
+        texts = record.get("mdr_text", [])
+        description = next(
+            (t.get("text") for t in texts if t.get("text_type_code") == "Description of Event or Problem"),
+            (texts[0].get("text") if texts else None),
+        )
+
+        results.append(
+            SearchResult(
+                title=brand_name,
+                entity_type="safety_signal",
+                entity_name=device.get("generic_name"),
+                company=device.get("manufacturer_d_name"),
+                country="United States",
+                category=device.get("device_report_product_code"),
+                regulatory_status=record.get("event_type"),
+                summary=(description or "")[:500] or None,
+                identifier=record.get("report_number"),
+                source_name="openFDA (MAUDE adverse events)",
+                source_url="https://api.fda.gov/device/event.json",
                 source_type="official",
             )
         )

@@ -30,6 +30,7 @@ from processing.ingredient_dictionary import lookup_ingredient
 REGULATORY_ENTITY_TYPES = ["medical_device", "drug_product", "eu_medicine"]
 CLINICAL_ENTITY_TYPES = ["clinical_study"]
 PATENT_ENTITY_TYPES = ["patent"]
+SAFETY_ENTITY_TYPES = ["safety_signal"]
 
 
 def _rows_for_entity_types(df: pd.DataFrame, entity_types: list[str]) -> list[dict]:
@@ -125,7 +126,7 @@ def build_canonical_search_response(
         clinical_studies = _rows_for_entity_types(df, CLINICAL_ENTITY_TYPES)
         patents = _rows_for_entity_types(df, PATENT_ENTITY_TYPES)
         trademarks = []
-        safety_signals = []
+        safety_signals = _rows_for_entity_types(df, SAFETY_ENTITY_TYPES)
 
     information_gaps = []
     if not registry_match:

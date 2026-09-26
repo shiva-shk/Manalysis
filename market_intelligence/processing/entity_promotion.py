@@ -9,24 +9,92 @@ saying "yes, this cluster is one real product," which is a judgment call
 the system should never make silently.
 """
 
+from collections import Counter
+
+from analysis.product_matching import match_decision, product_match_score
 from config import DB_PATH
 from database.registry_db import (
     add_clinical_study,
     add_field_evidence,
     add_product_alias,
     add_regulatory_record,
+    add_safety_signal,
     clinical_study_exists,
     create_product,
+    fetch_product_companies,
+    fetch_products,
     fetch_regulatory_records,
     link_product_company,
     log_audit_event,
     upsert_company,
     upsert_patent,
 )
+from processing.query_normalizer import normalize_query
 
-REGULATORY_ENTITY_TYPES = {"medical_device", "drug_product"}
+REGULATORY_ENTITY_TYPES = {"medical_device", "drug_product", "eu_medicine"}
 CLINICAL_ENTITY_TYPES = {"clinical_study"}
 PATENT_ENTITY_TYPES = {"patent"}
+SAFETY_ENTITY_TYPES = {"safety_signal"}
+
+
+def _cluster_match_fields(canonical_name: str, members: list[dict]) -> dict:
+    manufacturer = Counter(m["company"] for m in members if m.get("company")).most_common(1)
+    regulatory_number = next(
+        (m.get("identifier") for m in members
+         if m.get("entity_type") in REGULATORY_ENTITY_TYPES and m.get("identifier")),
+        None,
+    )
+    country = Counter(m["country"] for m in members if m.get("country")).most_common(1)
+
+    return {
+        "normalized_name": normalize_query(canonical_name),
+        "manufacturer": manufacturer[0][0] if manufacturer else None,
+        "regulatory_number": regulatory_number,
+        "product_family": None,
+        "country": country[0][0] if country else None,
+    }
+
+
+def _existing_product_match_fields(product: dict, db_path: str) -> dict:
+    companies = fetch_product_companies(product["id"], db_path=db_path)
+    manufacturer = companies[0]["company_name"] if companies else None
+    records = fetch_regulatory_records(product["id"], db_path=db_path)
+    regulatory_number = records[0]["registration_number"] if records else None
+
+    return {
+        "normalized_name": normalize_query(product["canonical_name"]),
+        "manufacturer": manufacturer,
+        "regulatory_number": regulatory_number,
+        "product_family": product.get("product_family"),
+        "country": product.get("country_of_origin"),
+    }
+
+
+def check_for_duplicate(canonical_name: str, members: list[dict], db_path: str = DB_PATH) -> dict | None:
+    """Compares a cluster about to be promoted against every already-
+    promoted product using the weighted product_match_score (structured
+    fields — name, manufacturer, regulatory number, family, country —
+    not name similarity alone). Returns the best match if its score
+    reaches at least the analyst-review threshold, else None. This never
+    blocks or auto-merges a promotion — it's advisory, so an analyst can
+    see "this might already be in the registry" before creating a
+    duplicate, then decide.
+    """
+    candidate = _cluster_match_fields(canonical_name, members)
+    best = None
+
+    for product in fetch_products(db_path=db_path):
+        existing = _existing_product_match_fields(dict(product), db_path)
+        score = product_match_score(candidate, existing)
+        if best is None or score > best["score"]:
+            best = {
+                "product_id": product["id"], "product_name": product["canonical_name"],
+                "score": score, "decision": match_decision(score),
+            }
+
+    if best and best["decision"] != "no_match":
+        return best
+    return None
 
 
 def promote_cluster(canonical_name: str, members: list[dict], analyst: str = "unattributed",
@@ -112,6 +180,17 @@ def promote_cluster(canonical_name: str, members: list[dict], analyst: str = "un
                     source_url=member.get("source_url"),
                 )
 
+        if member.get("entity_type") in SAFETY_ENTITY_TYPES:
+            add_safety_signal(
+                product_id,
+                db_path=db_path,
+                jurisdiction=_infer_jurisdiction(member),
+                signal_type=member.get("regulatory_status"),
+                description=member.get("summary"),
+                source_url=member.get("source_url"),
+                source_type=member.get("source_type"),
+            )
+
         if member.get("entity_type") in PATENT_ENTITY_TYPES and member.get("identifier"):
             upsert_patent(
                 member["identifier"],
@@ -164,11 +243,12 @@ def registry_completeness(product_id: int, db_path: str = DB_PATH) -> dict:
     """A quick sanity check an analyst can run after promoting: does this
     product have any regulatory backing, clinical evidence, or patent
     coverage at all, or is it evidence-free?"""
-    from database.registry_db import fetch_clinical_studies, fetch_patents
+    from database.registry_db import fetch_clinical_studies, fetch_patents, fetch_safety_signals
 
     records = fetch_regulatory_records(product_id, db_path=db_path)
     studies = fetch_clinical_studies(product_id, db_path=db_path)
     patents = fetch_patents(product_id, db_path=db_path)
+    safety_signals = fetch_safety_signals(product_id, db_path=db_path)
     return {
         "product_id": product_id,
         "regulatory_record_count": len(records),
@@ -176,4 +256,5 @@ def registry_completeness(product_id: int, db_path: str = DB_PATH) -> dict:
         "has_any_regulatory_evidence": len(records) > 0,
         "clinical_study_count": len(studies),
         "patent_count": len(patents),
+        "safety_signal_count": len(safety_signals),
     }

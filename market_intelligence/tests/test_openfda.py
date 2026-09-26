@@ -3,7 +3,9 @@ from unittest.mock import Mock, patch
 from connectors.openfda import (
     normalize_openfda_devices,
     normalize_openfda_drug_labels,
+    normalize_openfda_maude,
     normalize_openfda_pma,
+    normalize_openfda_recalls,
     normalize_openfda_udi,
     search_openfda_devices,
     search_openfda_drug_labels,
@@ -98,6 +100,59 @@ def test_search_openfda_drug_labels_quotes_multi_word_query():
         search_openfda_drug_labels("Rejuran Healer")
         params = mock_get.call_args.kwargs["params"]
         assert params["search"] == 'openfda.brand_name:"Rejuran Healer"'
+
+
+SAMPLE_RECALL_RAW = {
+    "results": [{
+        "recalling_firm": "Enhancement Medical, LLC",
+        "product_description": "Injectable Gel 1.5cc Syringe with hyaluronic acid",
+        "recall_status": "Terminated",
+        "reason_for_recall": "Manufacturer changed the production process.",
+        "product_res_number": "Z-2135-2014",
+        "product_code": "LMH",
+    }]
+}
+
+SAMPLE_MAUDE_RAW = {
+    "results": [{
+        "device": [{
+            "brand_name": "TEOSYAL RHA 4", "generic_name": "HYALURONIC ACID DERMAL FILLER GEL",
+            "manufacturer_d_name": "TEOXANE SA", "device_report_product_code": "LMH",
+        }],
+        "mdr_text": [{"text_type_code": "Description of Event or Problem", "text": "Vascular compromise after injection."}],
+        "event_type": "Injury",
+        "report_number": "3005975625-2020-00011",
+    }]
+}
+
+
+def test_normalize_openfda_recalls_extracts_key_fields():
+    results = normalize_openfda_recalls(SAMPLE_RECALL_RAW)
+    assert len(results) == 1
+    r = results[0]
+    assert r.entity_type == "safety_signal"
+    assert r.title == "Enhancement Medical, LLC"
+    assert r.identifier == "Z-2135-2014"
+    assert "Terminated" in r.regulatory_status
+    assert "production process" in r.summary
+
+
+def test_normalize_openfda_maude_extracts_key_fields():
+    results = normalize_openfda_maude(SAMPLE_MAUDE_RAW)
+    assert len(results) == 1
+    r = results[0]
+    assert r.entity_type == "safety_signal"
+    assert r.title == "TEOSYAL RHA 4"
+    assert r.company == "TEOXANE SA"
+    assert r.identifier == "3005975625-2020-00011"
+    assert "Vascular compromise" in r.summary
+
+
+def test_normalize_openfda_maude_handles_missing_device_or_text():
+    raw = {"results": [{"device": [], "mdr_text": [], "report_number": "X"}]}
+    results = normalize_openfda_maude(raw)
+    assert results[0].title == "Unnamed device"
+    assert results[0].summary is None
 
 
 def test_openfda_404_is_treated_as_zero_results_not_an_error():

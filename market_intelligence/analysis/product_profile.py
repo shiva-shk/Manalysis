@@ -13,6 +13,7 @@ SECTION_ENTITY_TYPES = {
     "clinical": ["clinical_study"],
     "patents": ["patent"],
     "literature": ["publication"],
+    "safety": ["safety_signal"],
 }
 
 

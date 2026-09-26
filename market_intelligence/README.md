@@ -13,10 +13,13 @@ market estimate or a discovery-source lead.
   - ClinicalTrials.gov (v2 REST API)
   - PubMed, via the Europe PMC REST API
   - openFDA (510(k) device clearances, drug labels, PMA/Class III device
-    approvals, UDI/GUDID device identifiers). PMA fills a real gap
-    510(k) alone leaves open: several dermal fillers are PMA-approved
-    (higher-risk pathway) rather than 510(k)-cleared, so a 510(k)-only
-    search misses them.
+    approvals, UDI/GUDID device identifiers, device recalls, MAUDE
+    adverse events). PMA fills a real gap 510(k) alone leaves open:
+    several dermal fillers are PMA-approved (higher-risk pathway) rather
+    than 510(k)-cleared, so a 510(k)-only search misses them. Recalls
+    and MAUDE feed the `safety_signal` entity type, shown in the
+    canonical structure's safety-signals section and, on promotion,
+    stored in the `safety_signals` table.
   - DailyMed — NLM's official structured-product-label database,
     documented at dailymed.nlm.nih.gov. Complements openFDA's drug-label
     connector with the raw SPL set ID and covers OTC as well as
@@ -219,19 +222,36 @@ already gives away free — not worth paying for. TGA, MFDS medical
 devices, PMDA, and KIPRIS remain unconnected for the same
 undocumented-API reasons as before.
 
-**Not built (phase 3 — IP/trademark and market-data expansion):** no
-trademark connector (WIPO Global Brand Database, EUIPO, USPTO TESS,
-KIPRIS) — the `trademarks` table exists and is ready to receive data,
-but none of those sources has been researched for a real free API yet.
-No safety-signal connector either — the `safety_signals` table exists,
-and openFDA's `device/recall.json`/`device/event.json` (MAUDE) endpoints
-are the most obvious real, free source to wire in next, but that's
-deferred pending an explicit ask rather than assumed.
+**Built (phase 2, continued):** openFDA device recalls
+(`device/recall.json`) and MAUDE adverse events (`device/event.json`),
+normalized as `safety_signal` entity-type results — flow through Search,
+the canonical structure's `safety_signals` section, and promotion (a
+promoted safety-signal cluster member becomes a `safety_signals` row).
 
-**Not built (phase 4 — comparison/development analysis):** the weighted
-product-matching function isn't wired into the promotion workflow yet
-(promotion still uses name/company fuzzy clustering from
-`analysis/entity_resolution.py`); no dedicated regulatory-comparison or
+**Built (phase 3, partial):** the `analysis/product_matching.py`
+scoring is now wired into the promotion workflow
+(`processing/entity_promotion.py::check_for_duplicate`) — before
+promoting a cluster, it's compared against every already-promoted
+product on structured fields (name/manufacturer/regulatory number/
+family/country), and the Registry tab shows a warning if the score
+reaches "analyst review" or "automatic match," without ever blocking or
+auto-merging. **Not built:** a trademark connector. USPTO's real
+trademark search (tmsearch.uspto.gov) works and was verified live —
+but only through the Alexandria research capability available in an
+agent session, not as a public documented HTTP API the standalone
+Streamlit app can call itself (its real endpoint is undocumented;
+reverse-engineering it properly needs browser network capture this
+pass didn't have tooling for). USPTO's official, documented API (TSDR)
+needs a free registered key but only does status lookup by a serial/
+registration number you already have — not name search — so a key
+alone wouldn't add brand-name search. EUIPO has a real free API but
+needs account + credential registration (same friction as MFDS/EPO).
+WIPO's Global Brand Database has no public API at all. The
+`trademarks` table exists and is ready to receive data from any of
+these once one is actually wired in.
+
+**Not built (phase 4 — remaining comparison/development analysis):** no
+dedicated cross-jurisdiction regulatory-comparison report or
 licensing-analysis report beyond what the existing Full Report and
 canonical structure already surface.
 

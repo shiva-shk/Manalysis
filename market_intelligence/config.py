@@ -57,6 +57,20 @@ SOURCES = {
         "supports": ["drug", "company"],
         "evidence_weight": 0.90,
     },
+    "openfda_recalls": {
+        "name": "openFDA (device recalls)",
+        "source_type": "official",
+        "api_available": True,
+        "supports": ["device", "company"],
+        "evidence_weight": 0.90,
+    },
+    "openfda_maude": {
+        "name": "openFDA (MAUDE adverse events)",
+        "source_type": "official",
+        "api_available": True,
+        "supports": ["device", "company"],
+        "evidence_weight": 0.85,
+    },
     "pubchem": {
         "name": "PubChem (chemical identity)",
         "source_type": "official",

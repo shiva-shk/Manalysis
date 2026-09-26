@@ -78,7 +78,7 @@ from database.registry_db import (
     link_product_ingredient,
 )
 from processing.document_ingest import ingest_pdf
-from processing.entity_promotion import promote_cluster, registry_completeness
+from processing.entity_promotion import check_for_duplicate, promote_cluster, registry_completeness
 from processing.evidence_scoring import confidence_label
 from processing.ingredient_dictionary import lookup_ingredient
 from processing.ingredient_seed_data import seed_ingredients
@@ -123,6 +123,8 @@ with search_tab:
             "openfda_drug": "openFDA — drug labels",
             "openfda_pma": "openFDA — PMA devices (Class III approvals)",
             "openfda_udi": "openFDA — UDI/GUDID device identifiers",
+            "openfda_recalls": "openFDA — device recalls",
+            "openfda_maude": "openFDA — MAUDE adverse events",
             "dailymed": "DailyMed — structured product labels",
             "ema": "EMA — EU centrally authorised medicines",
             "pubchem": "PubChem — chemical identity (CAS, formula, IUPAC name)",
@@ -989,6 +991,23 @@ with registry_tab:
             st.write(f"**{chosen['record_count']} record(s)** from sources: "
                      f"{', '.join(chosen['source_types']) or 'none'}")
             st.dataframe(pd.DataFrame(chosen["members"]), use_container_width=True, hide_index=True)
+
+            duplicate_match = check_for_duplicate(chosen_title, chosen["members"])
+            if duplicate_match:
+                if duplicate_match["decision"] == "automatic_match":
+                    st.warning(
+                        f"Likely already in the registry as **{duplicate_match['product_name']}** "
+                        f"(match score {duplicate_match['score']}, matching name + manufacturer + "
+                        "regulatory number/country). Promoting anyway creates a second, separate "
+                        "product record — check the existing one in Browse products first."
+                    )
+                else:
+                    st.info(
+                        f"Possibly related to an existing product, **{duplicate_match['product_name']}** "
+                        f"(match score {duplicate_match['score']}) — worth checking Browse products "
+                        "before promoting, though this isn't a strong enough match to assume "
+                        "they're the same."
+                    )
 
             with st.form("promote_form"):
                 canonical_name = st.text_input("Canonical product name", value=chosen_title)
