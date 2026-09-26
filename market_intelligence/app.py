@@ -10,7 +10,7 @@ automatically.
 import pandas as pd
 import streamlit as st
 
-from analysis.entity_resolution import cluster_entities
+from analysis.entity_resolution import cluster_entities, cluster_entities_with_members
 from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
 from analysis.product_profile import build_profile
 from analysis.summary import confidence_breakdown, summarize_results
@@ -25,11 +25,24 @@ from database.db import (
     save_market_data,
     save_results,
 )
+from database.registry_db import (
+    fetch_aliases,
+    fetch_field_evidence,
+    fetch_ingredients,
+    fetch_product_companies,
+    fetch_product_ingredients,
+    fetch_products,
+    fetch_regulatory_records,
+    link_product_ingredient,
+)
 from processing.document_ingest import ingest_pdf
+from processing.entity_promotion import promote_cluster, registry_completeness
 from processing.evidence_scoring import confidence_label
 from processing.ingredient_dictionary import lookup_ingredient
+from processing.ingredient_seed_data import seed_ingredients
 from processing.market_data import ALL_FIELDS, prepare_rows
 from processing.monitoring import find_new_results
+from processing.taxonomy import PRODUCT_TYPES, REGULATORY_CATEGORIES
 from reports.excel_report import build_excel_report
 from reports.pdf_report import build_pdf_report
 from search_pipeline import run_search
@@ -44,8 +57,8 @@ st.caption(
     "manually in the Market Data tab, each with its own source and confidence."
 )
 
-search_tab, market_tab, documents_tab, opportunity_tab, entities_tab, monitoring_tab = st.tabs(
-    ["Search", "Market Data", "Documents", "Opportunity Score", "Entities", "Monitoring"]
+search_tab, market_tab, documents_tab, opportunity_tab, entities_tab, monitoring_tab, registry_tab = st.tabs(
+    ["Search", "Market Data", "Documents", "Opportunity Score", "Entities", "Monitoring", "Registry"]
 )
 
 with search_tab:
@@ -376,3 +389,131 @@ with monitoring_tab:
                 save_results(monitor_query, "monitoring_check", new_results)
             else:
                 st.info("No new records since the last run.")
+
+with registry_tab:
+    st.subheader("Product registry")
+    st.caption(
+        "The verified layer. Nothing here is written automatically — a search result "
+        "cluster only becomes a product when someone promotes it, at which point every "
+        "field gets a citation back to the source row it came from. This is the "
+        "raw → normalized → verified evidence → analyst interpretation pipeline: "
+        "everything in Search/Entities is raw or normalized; only a promoted product "
+        "here counts as verified."
+    )
+
+    promote_subtab, browse_subtab, ingredients_subtab = st.tabs(
+        ["Promote a cluster", "Browse products", "Ingredients"]
+    )
+
+    with promote_subtab:
+        all_rows = [dict(r) for r in fetch_all_results()]
+        if not all_rows:
+            st.info("No stored results yet — run a search first.")
+        else:
+            clusters = cluster_entities_with_members(all_rows)
+            options = [c["canonical_title"] for c in clusters if c["record_count"] >= 1]
+            chosen_title = st.selectbox("Cluster to promote", options=options)
+            chosen = next(c for c in clusters if c["canonical_title"] == chosen_title)
+
+            st.write(f"**{chosen['record_count']} record(s)** from sources: "
+                     f"{', '.join(chosen['source_types']) or 'none'}")
+            st.dataframe(pd.DataFrame(chosen["members"]), use_container_width=True, hide_index=True)
+
+            with st.form("promote_form"):
+                canonical_name = st.text_input("Canonical product name", value=chosen_title)
+                product_type = st.selectbox("Product type", options=[""] + PRODUCT_TYPES)
+                regulatory_category = st.selectbox(
+                    "Regulatory category", options=REGULATORY_CATEGORIES,
+                    index=REGULATORY_CATEGORIES.index("unknown"),
+                )
+                analyst = st.text_input("Your name (recorded on every citation)", value="unattributed")
+                submitted = st.form_submit_button("Promote to product registry")
+
+            if submitted:
+                product_id = promote_cluster(
+                    canonical_name, chosen["members"], analyst=analyst,
+                    product_type=product_type or None,
+                    regulatory_category=regulatory_category,
+                )
+                completeness = registry_completeness(product_id)
+                st.success(f"Promoted as product #{product_id}.")
+                if not completeness["has_any_regulatory_evidence"]:
+                    st.warning(
+                        "No regulatory-tier source contributed to this cluster — this "
+                        "product has commercial/discovery evidence only so far."
+                    )
+
+    with browse_subtab:
+        products = fetch_products()
+        if not products:
+            st.info("No products promoted yet.")
+        else:
+            product_df = pd.DataFrame([dict(p) for p in products])
+            st.dataframe(product_df, use_container_width=True, hide_index=True)
+
+            selected_id = st.selectbox(
+                "Inspect a product",
+                options=product_df["id"].tolist(),
+                format_func=lambda pid: product_df.loc[product_df["id"] == pid, "canonical_name"].iloc[0],
+            )
+
+            aliases = fetch_aliases(selected_id)
+            companies = fetch_product_companies(selected_id)
+            reg_records = fetch_regulatory_records(selected_id)
+            prod_ingredients = fetch_product_ingredients(selected_id)
+            evidence = fetch_field_evidence("product", selected_id)
+
+            st.write(f"**Aliases** ({len(aliases)})")
+            st.dataframe(pd.DataFrame([dict(a) for a in aliases]), use_container_width=True, hide_index=True)
+
+            st.write(f"**Companies** ({len(companies)})")
+            st.dataframe(pd.DataFrame([dict(c) for c in companies]), use_container_width=True, hide_index=True)
+
+            st.write(f"**Regulatory records** ({len(reg_records)})")
+            if reg_records:
+                st.dataframe(pd.DataFrame([dict(r) for r in reg_records]), use_container_width=True, hide_index=True)
+            else:
+                st.caption("None yet — this product has no regulatory-tier evidence attached.")
+
+            st.write(f"**Ingredients** ({len(prod_ingredients)})")
+            all_ingredients = fetch_ingredients()
+            if all_ingredients:
+                with st.form("link_ingredient_form"):
+                    ing_df = pd.DataFrame([dict(i) for i in all_ingredients])
+                    ing_choice = st.selectbox(
+                        "Add an ingredient from the registry",
+                        options=ing_df["id"].tolist(),
+                        format_func=lambda iid: ing_df.loc[ing_df["id"] == iid, "preferred_name"].iloc[0],
+                    )
+                    role = st.text_input("Role in this product (e.g. active_substance)")
+                    concentration = st.text_input("Concentration (leave blank if not disclosed)")
+                    link_submitted = st.form_submit_button("Link ingredient")
+                if link_submitted:
+                    link_product_ingredient(
+                        selected_id, ing_choice, ingredient_role=role or None,
+                        concentration=concentration or None,
+                        concentration_type="not_disclosed" if not concentration else "exact",
+                    )
+                    st.success("Linked — refresh to see it below.")
+            if prod_ingredients:
+                st.dataframe(pd.DataFrame([dict(i) for i in prod_ingredients]), use_container_width=True, hide_index=True)
+
+            with st.expander(f"Field-level citations ({len(evidence)})"):
+                st.dataframe(pd.DataFrame([dict(e) for e in evidence]), use_container_width=True, hide_index=True)
+
+    with ingredients_subtab:
+        st.caption(
+            "The ingredient registry includes a seed set of real, individually verified "
+            "entries pulled from FDA DailyMed labels, EU CosIng, and INCI databases during "
+            "prior research — including recombinant growth factors identified by their "
+            "actual biological identity, not just their INCI code."
+        )
+        if st.button("Load seed ingredients (INCI-verified entries)"):
+            ids = seed_ingredients()
+            st.success(f"{len(ids)} ingredient(s) present in the registry (existing entries kept as-is).")
+
+        ingredients = fetch_ingredients()
+        if ingredients:
+            st.dataframe(pd.DataFrame([dict(i) for i in ingredients]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No ingredients in the registry yet.")

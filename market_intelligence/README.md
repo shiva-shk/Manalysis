@@ -40,6 +40,19 @@ market estimate or a discovery-source lead.
   every query you've ever run, not just a single search
 - Monitoring tab: re-runs a saved query on demand and flags only the
   records whose identifier wasn't already stored from a previous run
+- Registry tab: the verified-evidence layer on top of everything above.
+  A person promotes a cluster of search results into a canonical
+  product, which creates a company (with a role: brand owner,
+  manufacturer, etc.), an alias for every raw title seen, a regulatory
+  record for every member from an official-tier source, and a
+  field-level citation for every promoted value, so a registry record
+  always answers "where did this come from, and who said it was one
+  product." Nothing writes to the registry automatically — only a
+  promotion does. Also includes a real, individually-sourced ingredient
+  reference table (INCI names, CAS numbers where the ingredient is a
+  single compound, correctly no CAS number for exosome/EV preparations)
+  and a controlled taxonomy (product types, regulatory categories,
+  ingredient roles, company roles) so free-text values don't drift.
 - Streamlit UI with Excel and PDF export
 
 Commercial market-data sources (IQVIA, Euromonitor, Mintel, etc.) are not
@@ -62,8 +75,32 @@ pytest
 Tests cover the classifier, synonym expansion, evidence scoring,
 deduplication, connector normalization, market-data validation, document
 ingestion, opportunity scoring, product profiling, cross-query entity
-clustering, and the monitoring diff logic — all against canned data or
-generated fixtures, no network calls in the test suite.
+clustering, the monitoring diff logic, and the registry layer (entity
+promotion, field-level lineage, taxonomy validation, ingredient seed
+data) — all against canned data or generated fixtures, no network calls
+in the test suite.
+
+## Architecture: what's built vs. deferred
+
+This app is built against a larger target architecture (source layer →
+data management → knowledge database → analysis → decision support →
+reports/monitoring). Following that design's own stated build order:
+
+**Built (its "first priority" list):** product/company identity with
+role separation, product aliases, an ingredient/composition registry,
+field-level citations, official regulatory connectors, document
+ingestion, Excel/PDF export.
+
+**Deferred (its "second/third/fourth priority" lists, not started):**
+formulation development (QTPP, CQAs, CPPs, control strategy), stability
+and batch management, supplier/licensing database, cost modeling,
+stage-gate workflow, a real risk-management system, a knowledge graph,
+semantic search, scheduled/automated monitoring, multi-user access and
+audit trails, and connectors to TGA, MFDS, PMDA, KIPRIS, and paid market
+data providers (IQVIA, Euromonitor, Mintel, etc.). Building all of this
+in one pass would mean a lot of thin, undertested surface area; the
+priority order in the design doc is the intended sequence for adding
+the rest.
 
 ## Known limitations
 
