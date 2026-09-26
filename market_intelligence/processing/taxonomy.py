@@ -87,6 +87,8 @@ RECOMMENDED_ACTIONS = [
     "acquire", "monitor", "do_not_pursue",
 ]
 
+MARKET_SCOPE_LEVELS = ["global", "regional", "country"]
+
 DATA_QUALITY_FLAGS = [
     "source_conflict", "outdated", "incomplete", "estimated",
     "machine_extracted", "analyst_verified", "regulator_confirmed",

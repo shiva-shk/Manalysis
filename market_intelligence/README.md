@@ -31,7 +31,12 @@ market estimate or a discovery-source lead.
 - SQLite storage of every search run
 - Product/entity profile view grouping stored records by title
 - Market Data tab: manual entry or CSV/Excel upload of licensed figures,
-  each row keeping its own source, definition, and confidence rating
+  each row keeping its own source, definition, and confidence rating, and
+  tagged with a `scope_level` (global/regional/country) plus separate
+  `region`/`country` fields, so a global estimate, a regional figure
+  (e.g. MENA), and a country-specific one (e.g. Iran, when no global
+  vendor covers it) never get conflated just because they're stored in
+  the same table. Filterable by scope when browsing what's stored.
 - Document ingestion: upload a PDF (brochure, IFU, certificate) and extract
   text per page, tagged with any known ingredient/company mentions, with
   file name and page number kept as the citation

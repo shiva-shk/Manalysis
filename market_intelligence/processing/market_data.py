@@ -3,15 +3,24 @@
 Market figures are never scraped from paywalled reports — an analyst
 either uploads a licensed export or types the figure in, with its source
 and a confidence rating, so the number's provenance is never lost.
+
+`region` and `country` are kept as separate fields on purpose: a "MENA"
+regional figure and an "Iran" country-specific figure describe different
+things even when they're about the same underlying market, and merging
+them into one free-text field would make it impossible to tell later
+which level a given row actually reports at. `scope_level` makes that
+level explicit rather than inferred from which fields happen to be filled.
 """
 
 from datetime import datetime, timezone
 
-REQUIRED_FIELDS = ["category", "source"]
+from processing.taxonomy import MARKET_SCOPE_LEVELS
+
+REQUIRED_FIELDS = ["category", "source", "scope_level"]
 
 OPTIONAL_FIELDS = [
-    "subcategory", "region", "year", "market_value", "currency", "volume",
-    "market_share", "growth_rate", "forecast_year", "source_url",
+    "subcategory", "region", "country", "year", "market_value", "currency",
+    "volume", "market_share", "growth_rate", "forecast_year", "source_url",
     "definition", "confidence_score",
 ]
 
@@ -24,6 +33,14 @@ def validate_row(row: dict) -> list[str]:
     for field in REQUIRED_FIELDS:
         if not row.get(field):
             errors.append(f"'{field}' is required")
+
+    scope_level = row.get("scope_level")
+    if scope_level and scope_level not in MARKET_SCOPE_LEVELS:
+        errors.append(f"'scope_level' must be one of {MARKET_SCOPE_LEVELS}")
+    if scope_level == "country" and not row.get("country"):
+        errors.append("'country' is required when scope_level is 'country'")
+    if scope_level == "regional" and not row.get("region"):
+        errors.append("'region' is required when scope_level is 'regional'")
 
     confidence = row.get("confidence_score")
     if confidence not in (None, ""):

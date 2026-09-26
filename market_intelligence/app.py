@@ -254,19 +254,25 @@ with search_tab:
     )
 
 with market_tab:
-    st.subheader("Licensed market data")
+    st.subheader("Licensed and manually sourced market data")
     st.caption(
         "Upload a CSV/Excel export from a licensed source (IQVIA, Euromonitor, "
         "Mintel, etc.) or enter a figure manually. Every row keeps its own "
-        "source, definition, and confidence rating rather than being blended "
-        "into the search results above."
+        "source, definition, and confidence rating, and is tagged Global, "
+        "Regional, or Country so a global estimate is never confused with a "
+        "country-specific number just because they're stored side by side. "
+        "No global vendor publishes Iran-specific data for most medical/"
+        "aesthetic categories — that gap is exactly what the Country level "
+        "and manual upload exist for."
     )
 
-    with st.expander("Add a figure manually"):
+    with st.expander("Add a figure manually", expanded=True):
         with st.form("manual_market_entry"):
+            category = st.text_input("Category*", placeholder="dermal filler")
+            scope_level = st.selectbox("Scope*", options=["global", "regional", "country"])
             c1, c2, c3 = st.columns(3)
-            category = c1.text_input("Category*", placeholder="dermal filler")
-            region = c2.text_input("Region", placeholder="EU")
+            region = c1.text_input("Region (required if Regional)", placeholder="MENA")
+            country = c2.text_input("Country (required if Country)", placeholder="Iran")
             year = c3.number_input("Year", min_value=1990, max_value=2100, value=2026, step=1)
 
             c4, c5, c6 = st.columns(3)
@@ -281,10 +287,12 @@ with market_tab:
             submitted = st.form_submit_button("Add figure")
             if submitted:
                 record = {
-                    "category": category, "region": region, "year": year or None,
-                    "market_value": market_value or None, "currency": currency,
-                    "growth_rate": growth_rate or None, "source": source,
-                    "definition": definition, "confidence_score": confidence_score,
+                    "category": category, "scope_level": scope_level,
+                    "region": region or None, "country": country or None,
+                    "year": year or None, "market_value": market_value or None,
+                    "currency": currency, "growth_rate": growth_rate or None,
+                    "source": source, "definition": definition,
+                    "confidence_score": confidence_score,
                 }
                 valid_rows, errors = prepare_rows([record])
                 if errors:
@@ -294,6 +302,10 @@ with market_tab:
                     save_market_data(valid_rows)
                     st.success("Figure added.")
 
+    st.caption(
+        f"CSV/Excel upload columns: {', '.join(ALL_FIELDS)}. `scope_level` must be "
+        "one of global/regional/country."
+    )
     uploaded_file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"])
     if uploaded_file is not None:
         if uploaded_file.name.endswith(".csv"):
@@ -319,12 +331,13 @@ with market_tab:
 
     st.divider()
     st.subheader("Stored market data")
-    stored = fetch_market_data()
+    scope_filter = st.radio("Scope", options=["All", "global", "regional", "country"], horizontal=True)
+    stored = fetch_market_data(scope_level=None if scope_filter == "All" else scope_filter)
     if stored:
         stored_df = pd.DataFrame([dict(r) for r in stored])
         st.dataframe(stored_df, use_container_width=True, hide_index=True)
     else:
-        st.info("No market data stored yet.")
+        st.info("No market data stored at this scope yet.")
 
 with documents_tab:
     st.subheader("Document ingestion")

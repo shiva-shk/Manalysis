@@ -20,9 +20,25 @@ def get_connection(db_path: str = DB_PATH):
         conn.close()
 
 
+# Columns added after a table already shipped. CREATE TABLE IF NOT EXISTS
+# in SCHEMA only creates the table on a fresh database — an existing
+# market_intelligence.db from before these columns existed needs them
+# added explicitly, hence this small guarded migration list instead of a
+# full migration framework for what's still a single-file local cache.
+COLUMN_MIGRATIONS = [
+    ("market_data", "country", "TEXT"),
+    ("market_data", "scope_level", "TEXT DEFAULT 'global'"),
+]
+
+
 def init_db(db_path: str = DB_PATH) -> None:
     with get_connection(db_path) as conn:
         conn.executescript(SCHEMA)
+        for table, column, coltype in COLUMN_MIGRATIONS:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
 
 def save_results(query: str, query_type: str, results: list, db_path: str = DB_PATH) -> int:
@@ -106,15 +122,23 @@ def save_market_data(rows: list[dict], db_path: str = DB_PATH) -> int:
         return conn.execute("SELECT changes()").fetchone()[0]
 
 
-def fetch_market_data(category: str | None = None, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+def fetch_market_data(category: str | None = None, scope_level: str | None = None,
+                       db_path: str = DB_PATH) -> list[sqlite3.Row]:
     init_db(db_path)
+    clauses, params = [], []
+    if category:
+        clauses.append("category = ?")
+        params.append(category)
+    if scope_level:
+        clauses.append("scope_level = ?")
+        params.append(scope_level)
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    order = "year DESC" if category else "uploaded_at DESC"
     with get_connection(db_path) as conn:
-        if category:
-            return conn.execute(
-                "SELECT * FROM market_data WHERE category = ? ORDER BY year DESC",
-                (category,),
-            ).fetchall()
-        return conn.execute("SELECT * FROM market_data ORDER BY uploaded_at DESC").fetchall()
+        return conn.execute(
+            f"SELECT * FROM market_data {where} ORDER BY {order}", params
+        ).fetchall()
 
 
 DOCUMENT_COLUMNS = [

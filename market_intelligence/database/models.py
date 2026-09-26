@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS market_data (
     category TEXT NOT NULL,
     subcategory TEXT,
     region TEXT,
+    country TEXT,
+    scope_level TEXT DEFAULT 'global',
     year INTEGER,
     market_value REAL,
     currency TEXT,
