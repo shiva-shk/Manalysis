@@ -49,50 +49,64 @@ market estimate or a discovery-source lead.
     figures (total assets, liabilities, revenue, employee count) out of
     its summary metadata. Not wired into the Search tab's generic
     multi-source flow, since it's a different query shape (a financial
-    lookup, not a title/abstract search) — use it directly, or through the
-    Market Data tab once figures are pulled.
+    lookup, not a title/abstract search) — use it directly, or enter the
+    figures through Data Entry & Scoring > Market Data once pulled.
 - Result normalization into one common schema
 - Evidence scoring by source type and record completeness
 - Fuzzy deduplication (name similarity plus a matching identifier or company)
 - A curated ingredient reference table (INCI name, CAS number, class)
 - SQLite storage of every search run
 - Product/entity profile view grouping stored records by title
-- Market Data tab: manual entry or CSV/Excel upload of licensed figures,
-  each row keeping its own source, definition, and confidence rating, and
-  tagged with a `scope_level` (global/regional/country) plus separate
-  `region`/`country` fields, so a global estimate, a regional figure
-  (e.g. MENA), and a country-specific one (e.g. Iran, when no global
-  vendor covers it) never get conflated just because they're stored in
-  the same table. Filterable by scope when browsing what's stored.
-- Document ingestion: upload a PDF (brochure, IFU, certificate) and extract
-  text per page, tagged with any known ingredient/company mentions, with
-  file name and page number kept as the citation
-- Development-opportunity scoring (transparent, weighted, 1-5 per dimension)
+- **Data Entry & Scoring tab**: every kind of manual/uploaded data and
+  every scoring tool lives here in one place, so Search stays a pure
+  view of live connector results and Registry stays a pure view of the
+  verified/promoted layer. Sub-sections:
+  - **Market Data**: manual entry or CSV/Excel upload of licensed
+    figures, each row keeping its own source, definition, and confidence
+    rating, and tagged with a `scope_level` (global/regional/country)
+    plus separate `region`/`country` fields, so a global estimate, a
+    regional figure (e.g. MENA), and a country-specific one (e.g. Iran,
+    when no global vendor covers it) never get conflated just because
+    they're stored in the same table. Filterable by scope when browsing
+    what's stored.
+  - **Documents**: upload a PDF (brochure, IFU, certificate) and extract
+    text per page, tagged with any known ingredient/company mentions,
+    with file name and page number kept as the citation.
+  - **Opportunity Score**: transparent, weighted development-opportunity
+    scoring, 1-5 per dimension.
+  - **Suppliers**: manual-entry supplier database and per-supplier
+    materials, since no supplier-directory API exists to connect here.
+  - **Competitors**: a structured competitive-positioning note per
+    company — analyst judgment, kept separate from sourced search data.
+  - **Regulatory Records**: manual regulatory-record entry for a
+    promoted product, for jurisdictions with no connector here (TGA,
+    MFDS, PMDA), so those gaps are filled by hand with a source rather
+    than left silent.
+  - **Development**: QTPP/CQA/CPP/control strategy, a risk-assessment
+    log, stage-gate decisions, cost modeling, and portfolio-gap logging,
+    all tied to a promoted product.
 - Entities tab: clusters stored results into canonical entities across
   every query you've ever run, not just a single search
 - Monitoring tab: re-runs a saved query on demand and flags only the
   records whose identifier wasn't already stored from a previous run
-- Registry tab: the verified-evidence layer on top of everything above.
-  A person promotes a cluster of search results into a canonical
-  product, which creates a company (with a role: brand owner,
-  manufacturer, etc.), an alias for every raw title seen, a regulatory
-  record for every member from an official-tier source, and a
-  field-level citation for every promoted value, so a registry record
-  always answers "where did this come from, and who said it was one
-  product." Nothing writes to the registry automatically — only a
-  promotion does. Also includes a real, individually-sourced ingredient
-  reference table (INCI names, CAS numbers where the ingredient is a
-  single compound, correctly no CAS number for exosome/EV preparations)
-  and a controlled taxonomy (product types, regulatory categories,
-  ingredient roles, company roles) so free-text values don't drift. A
-  promotion also creates a `clinical_studies` record for any
-  ClinicalTrials.gov cluster member and a `patents` record for any EPO
-  patent cluster member, each deduplicated by registry/patent number so
-  re-promoting the same trial or patent twice doesn't double it up.
-  Includes manual-entry forms for suppliers, competitor profiles, and
-  regulatory records from jurisdictions with no connector here (TGA,
-  MFDS, PMDA), so those gaps are filled by hand with a source rather
-  than left silent.
+- Registry tab: the verified-evidence layer on top of everything above,
+  with no entry forms of its own besides promotion. A person promotes a
+  cluster of search results into a canonical product, which creates a
+  company (with a role: brand owner, manufacturer, etc.), an alias for
+  every raw title seen, a regulatory record for every member from an
+  official-tier source, and a field-level citation for every promoted
+  value, so a registry record always answers "where did this come from,
+  and who said it was one product." Nothing writes to the registry
+  automatically — only a promotion does. Also includes a real,
+  individually-sourced ingredient reference table (INCI names, CAS
+  numbers where the ingredient is a single compound, correctly no CAS
+  number for exosome/EV preparations) and a controlled taxonomy (product
+  types, regulatory categories, ingredient roles, company roles) so
+  free-text values don't drift. A promotion also creates a
+  `clinical_studies` record for any ClinicalTrials.gov cluster member
+  and a `patents` record for any EPO patent cluster member, each
+  deduplicated by registry/patent number so re-promoting the same trial
+  or patent twice doesn't double it up.
 - Full report (Search tab): consolidates a single search into one place —
   product comparison, ingredients, patents, approvals, clinical studies,
   and any stored Market Data rows whose category matches the query
@@ -106,7 +120,8 @@ market estimate or a discovery-source lead.
 
 Commercial market-data sources (IQVIA, Euromonitor, Mintel, etc.) are not
 queried automatically since they generally sit behind a paid subscription —
-use the Market Data tab's upload/manual-entry path instead of scraping them.
+use Data Entry & Scoring > Market Data's upload/manual-entry path instead
+of scraping them.
 
 ## Running it
 
@@ -152,8 +167,9 @@ tier: actual TGA/MFDS/PMDA/KIPRIS connectors (still blocked or
 undocumented, per the limitations below) and trademark search (no free
 API found).
 
-**Built ("third priority", partial):** a Development tab per promoted
-product, backing the formulation-development framework (QTPP, CQAs,
+**Built ("third priority", partial):** a Development section (in Data
+Entry & Scoring) per promoted product, backing the formulation-development
+framework (QTPP, CQAs,
 CPPs, control strategy), a risk-assessment log (severity x occurrence x
 detectability = risk priority number, mapped to an acceptability band,
 plus a keyword-based stop-criteria check that's independent of any
@@ -164,7 +180,7 @@ volume, and a cost-shift sensitivity check), and portfolio-gap logging
 with a recommended-action taxonomy. **Not built** from this tier:
 stability and batch management (needs real lab/stability data this app
 has no way to generate), and licensing-partner scoring beyond what the
-Suppliers tab already covers.
+Suppliers section already covers.
 
 **Built ("fourth priority", partial):**
 - A knowledge graph (NetworkX), built on demand from the registry
@@ -198,7 +214,7 @@ Suppliers tab already covers.
 - **Paid market data provider integrations** (IQVIA, Euromonitor,
   Mintel, etc.) — same reasoning as always: no unauthorized scraping,
   and no licensed API credentials exist to connect. The Market Data
-  tab's manual/upload path remains the intended entry point.
+  section's manual/upload path remains the intended entry point.
 
 ## Known limitations
 

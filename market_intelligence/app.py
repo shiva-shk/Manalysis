@@ -2,9 +2,12 @@
 
 Searches official/scientific sources (ClinicalTrials.gov, PubMed/Europe PMC,
 openFDA, EPO patents when configured), scores results by evidence quality,
-and exports to Excel/PDF. A separate tab holds manually entered or uploaded
-market data, since commercial market-research sources are not queried
-automatically.
+and exports to Excel/PDF. Every other kind of data entry — market figures,
+documents, opportunity scoring, suppliers, competitor profiles, manual
+regulatory records, and the product-development tools — lives in one
+"Data Entry & Scoring" tab, kept separate from Search (which only shows
+what a live connector search returns) and Registry (which only shows the
+verified/promoted layer, with no entry forms of its own besides promotion).
 """
 
 import pandas as pd
@@ -93,16 +96,15 @@ st.set_page_config(page_title="Medical Product Intelligence Platform", layout="w
 
 st.title("Medical Product Intelligence Platform")
 st.caption(
-    "Searches official and scientific sources only (ClinicalTrials.gov, "
-    "PubMed/Europe PMC, openFDA, EPO patents when configured). Commercial "
-    "market data is never scraped — upload licensed exports or enter figures "
-    "manually in the Market Data tab, each with its own source and confidence."
+    "Search runs live queries across every connected source and shows what "
+    "each one returns for a product, brand, ingredient, or company. Manual "
+    "and uploaded data, plus every scoring tool, lives in Data Entry & "
+    "Scoring. Registry is the verified layer — only a promoted product "
+    "counts as confirmed, and it has no entry forms of its own."
 )
 
-(search_tab, market_tab, documents_tab, opportunity_tab, entities_tab, monitoring_tab,
- registry_tab, development_tab) = st.tabs(
-    ["Search", "Market Data", "Documents", "Opportunity Score", "Entities", "Monitoring",
-     "Registry", "Development"]
+(search_tab, data_entry_tab, entities_tab, monitoring_tab, registry_tab) = st.tabs(
+    ["Search", "Data Entry & Scoring", "Entities", "Monitoring", "Registry"]
 )
 
 with search_tab:
@@ -259,7 +261,8 @@ with search_tab:
                 "Market Data rows matching this query (market analysis, sales, "
                 "market share). Every section pulls from data already in the "
                 "platform; a section with nothing stored shows empty rather than "
-                "an estimate."
+                "an estimate. Market/sales/share figures come from the Market "
+                "Data section of the Data Entry & Scoring tab."
             )
 
             stored_market_rows = [dict(r) for r in fetch_market_data()]
@@ -297,8 +300,9 @@ with search_tab:
             if not full_report["market_data"]:
                 st.caption(
                     "No Market Data rows are tagged with a matching category yet — "
-                    "add them in the Market Data tab (manual entry or licensed "
-                    "upload) to have market/sales/share figures show up here."
+                    "add them in the Market Data section of Data Entry & Scoring "
+                    "(manual entry or licensed upload) to have market/sales/share "
+                    "figures show up here."
                 )
 
             full_report_excel = build_full_report_excel(full_report, query)
@@ -316,142 +320,501 @@ with search_tab:
         "statuses and are not interchangeable."
     )
 
-with market_tab:
-    st.subheader("Licensed and manually sourced market data")
+with data_entry_tab:
     st.caption(
-        "Upload a CSV/Excel export from a licensed source (IQVIA, Euromonitor, "
-        "Mintel, etc.) or enter a figure manually. Every row keeps its own "
-        "source, definition, and confidence rating, and is tagged Global, "
-        "Regional, or Country so a global estimate is never confused with a "
-        "country-specific number just because they're stored side by side. "
-        "No global vendor publishes Iran-specific data for most medical/"
-        "aesthetic categories — that gap is exactly what the Country level "
-        "and manual upload exist for."
+        "Every kind of manual or uploaded data, plus every scoring tool, lives here — "
+        "market figures, documents, opportunity scoring, suppliers, competitor "
+        "profiles, manual regulatory records, and the product-development tools. "
+        "The Search tab only shows what a live connector search returns; Registry "
+        "only shows what's been promoted."
     )
 
-    with st.expander("Add a figure manually", expanded=True):
-        with st.form("manual_market_entry"):
-            category = st.text_input("Category*", placeholder="dermal filler")
-            scope_level = st.selectbox("Scope*", options=["global", "regional", "country"])
-            c1, c2, c3 = st.columns(3)
-            region = c1.text_input("Region (required if Regional)", placeholder="MENA")
-            country = c2.text_input("Country (required if Country)", placeholder="Iran")
-            year = c3.number_input("Year", min_value=1990, max_value=2100, value=2026, step=1)
+    (market_subtab, documents_subtab, opportunity_subtab, suppliers_de_subtab,
+     competitors_de_subtab, regulatory_de_subtab, development_subtab) = st.tabs(
+        ["Market Data", "Documents", "Opportunity Score", "Suppliers", "Competitors",
+         "Regulatory Records", "Development"]
+    )
 
-            c4, c5, c6 = st.columns(3)
-            market_value = c4.number_input("Market value", min_value=0.0, value=0.0, step=1.0)
-            currency = c5.text_input("Currency", placeholder="USD")
-            growth_rate = c6.number_input("Growth rate (%)", value=0.0, step=0.1)
+    with market_subtab:
+        st.subheader("Licensed and manually sourced market data")
+        st.caption(
+            "Upload a CSV/Excel export from a licensed source (IQVIA, Euromonitor, "
+            "Mintel, etc.) or enter a figure manually. Every row keeps its own "
+            "source, definition, and confidence rating, and is tagged Global, "
+            "Regional, or Country so a global estimate is never confused with a "
+            "country-specific number just because they're stored side by side. "
+            "No global vendor publishes Iran-specific data for most medical/"
+            "aesthetic categories — that gap is exactly what the Country level "
+            "and manual upload exist for."
+        )
 
-            source = st.text_input("Source*", placeholder="e.g. Mintel GNPD, 2026 report")
-            definition = st.text_area("Category definition", placeholder="What exactly this figure covers")
-            confidence_score = st.slider("Confidence", 0.0, 1.0, 0.6, 0.05)
+        with st.expander("Add a figure manually", expanded=True):
+            with st.form("manual_market_entry"):
+                category = st.text_input("Category*", placeholder="dermal filler")
+                scope_level = st.selectbox("Scope*", options=["global", "regional", "country"])
+                c1, c2, c3 = st.columns(3)
+                region = c1.text_input("Region (required if Regional)", placeholder="MENA")
+                country = c2.text_input("Country (required if Country)", placeholder="Iran")
+                year = c3.number_input("Year", min_value=1990, max_value=2100, value=2026, step=1)
 
-            submitted = st.form_submit_button("Add figure")
-            if submitted:
-                record = {
-                    "category": category, "scope_level": scope_level,
-                    "region": region or None, "country": country or None,
-                    "year": year or None, "market_value": market_value or None,
-                    "currency": currency, "growth_rate": growth_rate or None,
-                    "source": source, "definition": definition,
-                    "confidence_score": confidence_score,
-                }
-                valid_rows, errors = prepare_rows([record])
-                if errors:
+                c4, c5, c6 = st.columns(3)
+                market_value = c4.number_input("Market value", min_value=0.0, value=0.0, step=1.0)
+                currency = c5.text_input("Currency", placeholder="USD")
+                growth_rate = c6.number_input("Growth rate (%)", value=0.0, step=0.1)
+
+                source = st.text_input("Source*", placeholder="e.g. Mintel GNPD, 2026 report")
+                definition = st.text_area("Category definition", placeholder="What exactly this figure covers")
+                confidence_score = st.slider("Confidence", 0.0, 1.0, 0.6, 0.05)
+
+                submitted = st.form_submit_button("Add figure")
+                if submitted:
+                    record = {
+                        "category": category, "scope_level": scope_level,
+                        "region": region or None, "country": country or None,
+                        "year": year or None, "market_value": market_value or None,
+                        "currency": currency, "growth_rate": growth_rate or None,
+                        "source": source, "definition": definition,
+                        "confidence_score": confidence_score,
+                    }
+                    valid_rows, errors = prepare_rows([record])
+                    if errors:
+                        for e in errors:
+                            st.error(e)
+                    else:
+                        save_market_data(valid_rows)
+                        st.success("Figure added.")
+
+        st.caption(
+            f"CSV/Excel upload columns: {', '.join(ALL_FIELDS)}. `scope_level` must be "
+            "one of global/regional/country."
+        )
+        uploaded_file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"])
+        if uploaded_file is not None:
+            if uploaded_file.name.endswith(".csv"):
+                upload_df = pd.read_csv(uploaded_file)
+            else:
+                upload_df = pd.read_excel(uploaded_file)
+
+            missing = set(ALL_FIELDS) - set(upload_df.columns)
+            if missing:
+                st.error(
+                    f"Upload is missing expected columns: {', '.join(sorted(missing))}. "
+                    f"Required columns: {', '.join(ALL_FIELDS)}."
+                )
+            else:
+                st.dataframe(upload_df, use_container_width=True, hide_index=True)
+                if st.button("Import uploaded rows"):
+                    valid_rows, errors = prepare_rows(upload_df.to_dict("records"))
                     for e in errors:
                         st.error(e)
-                else:
-                    save_market_data(valid_rows)
-                    st.success("Figure added.")
+                    if valid_rows:
+                        save_market_data(valid_rows)
+                        st.success(f"Imported {len(valid_rows)} row(s).")
 
-    st.caption(
-        f"CSV/Excel upload columns: {', '.join(ALL_FIELDS)}. `scope_level` must be "
-        "one of global/regional/country."
-    )
-    uploaded_file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"])
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            upload_df = pd.read_csv(uploaded_file)
+        st.divider()
+        st.subheader("Stored market data")
+        scope_filter = st.radio("Scope", options=["All", "global", "regional", "country"], horizontal=True)
+        stored = fetch_market_data(scope_level=None if scope_filter == "All" else scope_filter)
+        if stored:
+            stored_df = pd.DataFrame([dict(r) for r in stored])
+            st.dataframe(stored_df, use_container_width=True, hide_index=True)
         else:
-            upload_df = pd.read_excel(uploaded_file)
+            st.info("No market data stored at this scope yet.")
 
-        missing = set(ALL_FIELDS) - set(upload_df.columns)
-        if missing:
-            st.error(
-                f"Upload is missing expected columns: {', '.join(sorted(missing))}. "
-                f"Required columns: {', '.join(ALL_FIELDS)}."
+    with documents_subtab:
+        st.subheader("Document ingestion")
+        st.caption(
+            "Upload a brochure, IFU, certificate, or other PDF. Text is extracted per page "
+            "and scanned for known ingredient and company names, keeping the file name and "
+            "page number as the citation for anything pulled from it."
+        )
+
+        pdf_files = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple_files=True)
+        doc_source_type = st.selectbox(
+            "Document type", ["manufacturer", "regulatory", "scientific", "commercial"]
+        )
+
+        if pdf_files and st.button("Extract and store"):
+            total_pages = 0
+            for pdf_file in pdf_files:
+                records = ingest_pdf(pdf_file.read(), pdf_file.name, source_type=doc_source_type)
+                save_document_pages(records)
+                total_pages += len(records)
+            st.success(f"Extracted and stored {total_pages} page(s) from {len(pdf_files)} file(s).")
+
+        st.divider()
+        st.subheader("Stored documents")
+        documents = fetch_documents()
+        if documents:
+            st.dataframe(pd.DataFrame([dict(r) for r in documents]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No documents uploaded yet.")
+
+    with opportunity_subtab:
+        st.subheader("Development-opportunity score")
+        st.caption(
+            "A transparent, weighted decision-support score, not an objective verdict — "
+            "score each dimension 1 (poor) to 5 (excellent) and record why."
+        )
+
+        with st.form("opportunity_form"):
+            scores = {}
+            notes = {}
+            for key, meta in DIMENSIONS.items():
+                c1, c2 = st.columns([1, 3])
+                scores[key] = c1.slider(f"{meta['label']} ({meta['weight']:.0%})", 1, 5, 3, key=f"score_{key}")
+                notes[key] = c2.text_input("Reasoning", key=f"notes_{key}", label_visibility="collapsed",
+                                            placeholder=f"Why this score for {meta['label'].lower()}?")
+            opp_submitted = st.form_submit_button("Calculate score")
+
+        if opp_submitted:
+            score = opportunity_score(scores)
+            st.metric("Opportunity score", score)
+            st.dataframe(pd.DataFrame(score_breakdown(scores, notes)), use_container_width=True, hide_index=True)
+
+    with suppliers_de_subtab:
+        st.caption(
+            "Manual entry only — no supplier directory API exists to connect here. "
+            "Use this for raw-material suppliers you've identified through research, "
+            "trade shows, or direct outreach."
+        )
+        with st.form("add_supplier_form"):
+            supplier_name = st.text_input("Supplier name*")
+            s_col1, s_col2 = st.columns(2)
+            supplier_type = s_col1.text_input("Supplier type (e.g. API supplier, CDMO)")
+            supplier_country = s_col2.text_input("Country")
+            gmp_status = s_col1.text_input("GMP status")
+            material_category = s_col2.text_input("Material category")
+            supplier_source_url = st.text_input("Source URL")
+            supplier_submitted = st.form_submit_button("Add supplier")
+        if supplier_submitted and supplier_name:
+            add_supplier(
+                supplier_name, supplier_type=supplier_type or None, country=supplier_country or None,
+                gmp_status=gmp_status or None, material_category=material_category or None,
+                source_url=supplier_source_url or None,
             )
+            st.success("Supplier added.")
+
+        suppliers = fetch_suppliers()
+        if suppliers:
+            supplier_df = pd.DataFrame([dict(s) for s in suppliers])
+            st.dataframe(supplier_df, use_container_width=True, hide_index=True)
+
+            sel_supplier_id = st.selectbox(
+                "Inspect a supplier's materials",
+                options=supplier_df["id"].tolist(),
+                format_func=lambda sid: supplier_df.loc[supplier_df["id"] == sid, "supplier_name"].iloc[0],
+            )
+            with st.form("add_supplier_material_form"):
+                trade_name = st.text_input("Trade/grade name")
+                catalog_number = st.text_input("Catalog number")
+                moq = st.text_input("Minimum order quantity")
+                material_submitted = st.form_submit_button("Add material")
+            if material_submitted and trade_name:
+                add_supplier_material(
+                    sel_supplier_id, trade_name=trade_name,
+                    catalog_number=catalog_number or None, minimum_order_quantity=moq or None,
+                )
+                st.success("Material added — refresh to see it below.")
+
+            materials = fetch_supplier_materials(sel_supplier_id)
+            if materials:
+                st.dataframe(pd.DataFrame([dict(m) for m in materials]), use_container_width=True, hide_index=True)
         else:
-            st.dataframe(upload_df, use_container_width=True, hide_index=True)
-            if st.button("Import uploaded rows"):
-                valid_rows, errors = prepare_rows(upload_df.to_dict("records"))
-                for e in errors:
-                    st.error(e)
-                if valid_rows:
-                    save_market_data(valid_rows)
-                    st.success(f"Imported {len(valid_rows)} row(s).")
+            st.info("No suppliers added yet.")
 
-    st.divider()
-    st.subheader("Stored market data")
-    scope_filter = st.radio("Scope", options=["All", "global", "regional", "country"], horizontal=True)
-    stored = fetch_market_data(scope_level=None if scope_filter == "All" else scope_filter)
-    if stored:
-        stored_df = pd.DataFrame([dict(r) for r in stored])
-        st.dataframe(stored_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No market data stored at this scope yet.")
+    with competitors_de_subtab:
+        st.caption(
+            "A structured competitive-positioning note per company — separate from raw "
+            "search results, since this is analyst judgment, not a sourced fact."
+        )
+        companies = fetch_companies()
+        if not companies:
+            st.info("No companies in the registry yet — promote a product cluster in the Registry tab first.")
+        else:
+            company_df = pd.DataFrame([dict(c) for c in companies])
+            with st.form("add_competitor_profile_form"):
+                comp_company_id = st.selectbox(
+                    "Company", options=company_df["id"].tolist(),
+                    format_func=lambda cid: company_df.loc[company_df["id"] == cid, "canonical_name"].iloc[0],
+                )
+                c1, c2 = st.columns(2)
+                strategic_segment = c1.text_input("Strategic segment")
+                threat_level = c2.text_input("Threat level")
+                competitive_advantage = st.text_area("Competitive advantage")
+                competitive_weakness = st.text_area("Competitive weakness")
+                profile_analyst = st.text_input("Your name")
+                profile_submitted = st.form_submit_button("Save competitor profile")
+            if profile_submitted:
+                add_competitor_profile(
+                    comp_company_id, strategic_segment=strategic_segment or None,
+                    threat_level=threat_level or None,
+                    competitive_advantage=competitive_advantage or None,
+                    competitive_weakness=competitive_weakness or None,
+                    analyst=profile_analyst or None,
+                )
+                st.success("Profile saved.")
 
-with documents_tab:
-    st.subheader("Document ingestion")
-    st.caption(
-        "Upload a brochure, IFU, certificate, or other PDF. Text is extracted per page "
-        "and scanned for known ingredient and company names, keeping the file name and "
-        "page number as the citation for anything pulled from it."
-    )
+            profiles = fetch_competitor_profiles()
+            if profiles:
+                st.dataframe(pd.DataFrame([dict(p) for p in profiles]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No competitor profiles yet.")
 
-    pdf_files = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple_files=True)
-    source_type = st.selectbox(
-        "Document type", ["manufacturer", "regulatory", "scientific", "commercial"]
-    )
+    with regulatory_de_subtab:
+        st.caption(
+            "For jurisdictions without a connector here (TGA, MFDS, PMDA) — enter what "
+            "you found by hand, with its own source, rather than leaving the gap silent. "
+            "A product must be promoted in the Registry tab first."
+        )
+        reg_products = fetch_products()
+        if not reg_products:
+            st.info("No products promoted yet — go to the Registry tab first.")
+        else:
+            reg_product_df = pd.DataFrame([dict(p) for p in reg_products])
+            reg_product_id = st.selectbox(
+                "Product",
+                options=reg_product_df["id"].tolist(),
+                format_func=lambda pid: reg_product_df.loc[reg_product_df["id"] == pid, "canonical_name"].iloc[0],
+                key="regulatory_de_product_select",
+            )
 
-    if pdf_files and st.button("Extract and store"):
-        total_pages = 0
-        for pdf_file in pdf_files:
-            records = ingest_pdf(pdf_file.read(), pdf_file.name, source_type=source_type)
-            save_document_pages(records)
-            total_pages += len(records)
-        st.success(f"Extracted and stored {total_pages} page(s) from {len(pdf_files)} file(s).")
+            existing_reg_records = fetch_regulatory_records(reg_product_id)
+            st.write(f"**Existing regulatory records** ({len(existing_reg_records)})")
+            if existing_reg_records:
+                st.dataframe(
+                    pd.DataFrame([dict(r) for r in existing_reg_records]),
+                    use_container_width=True, hide_index=True,
+                )
+            else:
+                st.caption("None yet for this product.")
 
-    st.divider()
-    st.subheader("Stored documents")
-    documents = fetch_documents()
-    if documents:
-        st.dataframe(pd.DataFrame([dict(r) for r in documents]), use_container_width=True, hide_index=True)
-    else:
-        st.info("No documents uploaded yet.")
+            with st.form("manual_regulatory_form"):
+                jurisdiction = st.text_input("Jurisdiction (e.g. AU, KR, JP)")
+                authority = st.text_input("Authority (e.g. TGA, MFDS, PMDA)")
+                status = st.text_input("Status")
+                registration_number = st.text_input("Registration/approval number")
+                manual_source_url = st.text_input("Source URL")
+                manual_submitted = st.form_submit_button("Add record")
+            if manual_submitted and jurisdiction:
+                add_regulatory_record(
+                    reg_product_id, jurisdiction=jurisdiction, authority=authority,
+                    status=status or None, registration_number=registration_number or None,
+                    source_url=manual_source_url or None, source_type="analyst_manual_entry",
+                )
+                st.success("Added — refresh to see it above.")
 
-with opportunity_tab:
-    st.subheader("Development-opportunity score")
-    st.caption(
-        "A transparent, weighted decision-support score, not an objective verdict — "
-        "score each dimension 1 (poor) to 5 (excellent) and record why."
-    )
+    with development_subtab:
+        st.caption(
+            "Formulation development, risk management, stage-gate tracking, cost modeling, "
+            "and portfolio-gap analysis — all tied to a promoted product from the Registry tab. "
+            "A market-attractive product can still fail a stop criterion here; the two are "
+            "checked independently on purpose."
+        )
 
-    with st.form("opportunity_form"):
-        scores = {}
-        notes = {}
-        for key, meta in DIMENSIONS.items():
-            c1, c2 = st.columns([1, 3])
-            scores[key] = c1.slider(f"{meta['label']} ({meta['weight']:.0%})", 1, 5, 3, key=f"score_{key}")
-            notes[key] = c2.text_input("Reasoning", key=f"notes_{key}", label_visibility="collapsed",
-                                        placeholder=f"Why this score for {meta['label'].lower()}?")
-        submitted = st.form_submit_button("Calculate score")
+        dev_products = fetch_products()
+        if not dev_products:
+            st.info("No products promoted yet — go to the Registry tab first.")
+        else:
+            dev_product_df = pd.DataFrame([dict(p) for p in dev_products])
+            dev_product_id = st.selectbox(
+                "Product",
+                options=dev_product_df["id"].tolist(),
+                format_func=lambda pid: dev_product_df.loc[dev_product_df["id"] == pid, "canonical_name"].iloc[0],
+                key="dev_product_select",
+            )
 
-    if submitted:
-        score = opportunity_score(scores)
-        st.metric("Opportunity score", score)
-        st.dataframe(pd.DataFrame(score_breakdown(scores, notes)), use_container_width=True, hide_index=True)
+            (qttp_subtab, risk_subtab, stage_gate_subtab,
+             cost_subtab, portfolio_subtab) = st.tabs(
+                ["QTPP / CQA / CPP", "Risk Assessment", "Stage Gate", "Cost Model", "Portfolio Gaps"]
+            )
+
+            with qttp_subtab:
+                st.write("**Quality Target Product Profile**")
+                with st.form("qttp_form"):
+                    q1, q2 = st.columns(2)
+                    dosage_form = q1.text_input("Dosage form")
+                    route = q2.text_input("Route")
+                    strength = q1.text_input("Strength")
+                    sterility_requirement = q2.text_input("Sterility requirement")
+                    qttp_submitted = st.form_submit_button("Save QTTP")
+                if qttp_submitted:
+                    add_qttp(dev_product_id, dosage_form=dosage_form or None, route=route or None,
+                              strength=strength or None, sterility_requirement=sterility_requirement or None)
+                    st.success("Saved.")
+                existing_qttp = fetch_qttp(dev_product_id)
+                if existing_qttp:
+                    st.dataframe(pd.DataFrame([dict(q) for q in existing_qttp]), use_container_width=True, hide_index=True)
+
+                st.write("**Critical Quality Attributes**")
+                with st.form("cqa_form"):
+                    attribute_name = st.text_input("Attribute name")
+                    c1, c2 = st.columns(2)
+                    attribute_category = c1.selectbox("Category", options=[""] + CQA_CATEGORIES)
+                    criticality = c2.text_input("Criticality")
+                    acceptable_range = st.text_input("Acceptable range")
+                    cqa_submitted = st.form_submit_button("Add CQA")
+                if cqa_submitted and attribute_name:
+                    add_cqa(dev_product_id, attribute_name, attribute_category=attribute_category or None,
+                             criticality=criticality or None, acceptable_range=acceptable_range or None)
+                    st.success("Added.")
+                cqas = fetch_cqas(dev_product_id)
+                if cqas:
+                    st.dataframe(pd.DataFrame([dict(c) for c in cqas]), use_container_width=True, hide_index=True)
+
+                st.write("**Critical Process Parameters**")
+                with st.form("cpp_form"):
+                    parameter_name = st.text_input("Parameter name")
+                    process_step = st.text_input("Process step")
+                    cpp_range = st.text_input("Acceptable range", key="cpp_range")
+                    cpp_submitted = st.form_submit_button("Add CPP")
+                if cpp_submitted and parameter_name:
+                    add_cpp(dev_product_id, parameter_name, process_step=process_step or None,
+                             acceptable_range=cpp_range or None)
+                    st.success("Added.")
+                cpps = fetch_cpps(dev_product_id)
+                if cpps:
+                    st.dataframe(pd.DataFrame([dict(c) for c in cpps]), use_container_width=True, hide_index=True)
+
+                st.write("**Control Strategy**")
+                with st.form("control_form"):
+                    test_or_control = st.text_input("Test or control")
+                    acceptance_criteria = st.text_input("Acceptance criteria")
+                    control_submitted = st.form_submit_button("Add control")
+                if control_submitted and test_or_control:
+                    add_control(dev_product_id, test_or_control, acceptance_criteria=acceptance_criteria or None)
+                    st.success("Added.")
+                controls = fetch_controls(dev_product_id)
+                if controls:
+                    st.dataframe(pd.DataFrame([dict(c) for c in controls]), use_container_width=True, hide_index=True)
+
+            with risk_subtab:
+                st.caption(
+                    "Risk priority number = severity x occurrence x detectability (1-5 each, 1-125 total). "
+                    "A stop-criterion match overrides any opportunity score — it's checked "
+                    "independently, not folded into a single number."
+                )
+                with st.form("risk_form"):
+                    risk_category = st.selectbox("Risk category", options=RISK_CATEGORIES)
+                    risk_event = st.text_input("Risk event")
+                    effect = st.text_area("Effect")
+                    r1, r2, r3 = st.columns(3)
+                    severity = r1.slider("Severity", 1, 5, 3)
+                    occurrence = r2.slider("Occurrence", 1, 5, 3)
+                    detectability = r3.slider("Detectability", 1, 5, 3)
+                    existing_controls = st.text_input("Existing controls")
+                    risk_submitted = st.form_submit_button("Add risk")
+                if risk_submitted and risk_event:
+                    rpn = risk_priority_number(severity, occurrence, detectability)
+                    add_risk_assessment(
+                        risk_category, risk_event, product_id=dev_product_id, effect=effect or None,
+                        severity=severity, occurrence=occurrence, detectability=detectability,
+                        risk_priority_number=rpn, existing_controls=existing_controls or None,
+                        residual_risk=risk_acceptability(rpn),
+                    )
+                    stops = check_stop_criteria([risk_event, effect])
+                    if stops:
+                        st.error(f"Stop-criterion language detected: {', '.join(stops)} — review before proceeding.")
+                    else:
+                        st.success(f"Added. RPN = {rpn} ({risk_acceptability(rpn)}).")
+
+                risks = fetch_risk_assessments(dev_product_id)
+                if risks:
+                    st.dataframe(pd.DataFrame([dict(r) for r in risks]), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No risks logged for this product yet.")
+
+            with stage_gate_subtab:
+                current = fetch_stage_gate_decisions(dev_product_id)
+                if current:
+                    st.metric("Current stage", current[0]["stage"])
+                    st.metric("Last decision", current[0]["decision"])
+
+                with st.form("stage_gate_form"):
+                    stage = st.selectbox("Stage", options=STAGE_GATE_STAGES)
+                    decision = st.selectbox("Decision", options=STAGE_GATE_DECISIONS)
+                    criteria = st.text_area("Criteria required for this gate")
+                    evidence = st.text_area("Evidence presented")
+                    open_risks = st.text_input("Open risks")
+                    decision_owner = st.text_input("Decision owner")
+                    gate_submitted = st.form_submit_button("Record decision")
+                if gate_submitted:
+                    add_stage_gate_decision(
+                        dev_product_id, stage, decision, criteria=criteria or None,
+                        evidence=evidence or None, open_risks=open_risks or None,
+                        decision_owner=decision_owner or None,
+                    )
+                    st.success("Recorded.")
+
+                history = fetch_stage_gate_decisions(dev_product_id)
+                if history:
+                    st.dataframe(pd.DataFrame([dict(h) for h in history]), use_container_width=True, hide_index=True)
+
+            with cost_subtab:
+                with st.form("cost_form"):
+                    scenario = st.selectbox("Scenario", options=["base_case", "optimistic_case", "conservative_case"])
+                    c1, c2, c3 = st.columns(3)
+                    material_cost = c1.number_input("Material cost", min_value=0.0, value=0.0)
+                    packaging_cost = c2.number_input("Packaging cost", min_value=0.0, value=0.0)
+                    manufacturing_cost = c3.number_input("Manufacturing cost", min_value=0.0, value=0.0)
+                    analytical_cost = c1.number_input("Analytical cost", min_value=0.0, value=0.0)
+                    regulatory_cost = c2.number_input("Regulatory cost", min_value=0.0, value=0.0)
+                    distribution_cost = c3.number_input("Distribution cost", min_value=0.0, value=0.0)
+                    target_price = st.number_input("Target price", min_value=0.0, value=0.0)
+                    fixed_investment = st.number_input("Fixed launch investment (for break-even)", min_value=0.0, value=0.0)
+                    cost_submitted = st.form_submit_button("Save cost model")
+
+                if cost_submitted:
+                    costs = {
+                        "material_cost": material_cost, "packaging_cost": packaging_cost,
+                        "manufacturing_cost": manufacturing_cost, "analytical_cost": analytical_cost,
+                        "regulatory_cost": regulatory_cost, "distribution_cost": distribution_cost,
+                    }
+                    cogs = estimated_cogs(costs)
+                    margin = gross_margin(target_price, cogs)
+                    bev = break_even_volume(fixed_investment, target_price, cogs)
+                    add_cost_model(
+                        dev_product_id, scenario=scenario, **costs,
+                        estimated_cogs=cogs, target_price=target_price or None,
+                        gross_margin=margin, break_even_volume=bev,
+                    )
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Estimated COGS", cogs)
+                    col2.metric("Gross margin", f"{margin:.1%}" if margin is not None else "n/a")
+                    col3.metric("Break-even volume", bev if bev is not None else "n/a")
+
+                cost_models = fetch_cost_models(dev_product_id)
+                if cost_models:
+                    st.dataframe(pd.DataFrame([dict(c) for c in cost_models]), use_container_width=True, hide_index=True)
+
+            with portfolio_subtab:
+                st.caption(
+                    "Not tied to a single product — a portfolio gap is about a category/segment/"
+                    "geography combination your team doesn't cover yet, evaluated against what "
+                    "competitors already offer there."
+                )
+                with st.form("portfolio_gap_form"):
+                    portfolio_category = st.text_input("Category")
+                    p1, p2 = st.columns(2)
+                    customer_segment = p1.text_input("Customer segment")
+                    geography = p2.text_input("Geography")
+                    current_coverage = st.text_input("Current coverage")
+                    competitor_coverage = st.text_input("Competitor coverage")
+                    recommended_action = st.selectbox("Recommended action", options=[""] + RECOMMENDED_ACTIONS)
+                    gap_submitted = st.form_submit_button("Add gap")
+                if gap_submitted and portfolio_category:
+                    add_portfolio_gap(
+                        portfolio_category, customer_segment=customer_segment or None, geography=geography or None,
+                        current_coverage=current_coverage or None, competitor_coverage=competitor_coverage or None,
+                        recommended_action=recommended_action or None,
+                    )
+                    st.success("Added.")
+
+                gaps = fetch_portfolio_gaps()
+                if gaps:
+                    st.dataframe(pd.DataFrame([dict(g) for g in gaps]), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No portfolio gaps logged yet.")
 
 with entities_tab:
     st.subheader("Entities across all searches")
@@ -523,13 +886,14 @@ with registry_tab:
         "field gets a citation back to the source row it came from. This is the "
         "raw → normalized → verified evidence → analyst interpretation pipeline: "
         "everything in Search/Entities is raw or normalized; only a promoted product "
-        "here counts as verified."
+        "here counts as verified. There are no other entry forms here — suppliers, "
+        "competitor profiles, and manual regulatory records are entered in the "
+        "Data Entry & Scoring tab."
     )
 
     (promote_subtab, browse_subtab, ingredients_subtab,
-     suppliers_subtab, competitors_subtab, search_subtab, audit_subtab) = st.tabs(
-        ["Promote a cluster", "Browse products", "Ingredients", "Suppliers", "Competitors",
-         "Search", "Audit Log"]
+     search_subtab, audit_subtab) = st.tabs(
+        ["Promote a cluster", "Browse products", "Ingredients", "Search", "Audit Log"]
     )
 
     with promote_subtab:
@@ -600,28 +964,10 @@ with registry_tab:
             if reg_records:
                 st.dataframe(pd.DataFrame([dict(r) for r in reg_records]), use_container_width=True, hide_index=True)
             else:
-                st.caption("None yet — this product has no regulatory-tier evidence attached.")
-
-            with st.expander("Add a regulatory record manually"):
                 st.caption(
-                    "For jurisdictions without a connector here (TGA, MFDS, PMDA) — enter "
-                    "what you found by hand, with its own source, rather than leaving the "
-                    "gap silent."
+                    "None yet — this product has no regulatory-tier evidence attached. "
+                    "Add one manually in Data Entry & Scoring > Regulatory Records."
                 )
-                with st.form("manual_regulatory_form"):
-                    jurisdiction = st.text_input("Jurisdiction (e.g. AU, KR, JP)")
-                    authority = st.text_input("Authority (e.g. TGA, MFDS, PMDA)")
-                    status = st.text_input("Status")
-                    registration_number = st.text_input("Registration/approval number")
-                    manual_source_url = st.text_input("Source URL")
-                    manual_submitted = st.form_submit_button("Add record")
-                if manual_submitted and jurisdiction:
-                    add_regulatory_record(
-                        selected_id, jurisdiction=jurisdiction, authority=authority,
-                        status=status or None, registration_number=registration_number or None,
-                        source_url=manual_source_url or None, source_type="analyst_manual_entry",
-                    )
-                    st.success("Added — refresh to see it above.")
 
             clinical_studies = fetch_clinical_studies(selected_id)
             st.write(f"**Clinical studies** ({len(clinical_studies)})")
@@ -669,14 +1015,14 @@ with registry_tab:
                     "store, just a relationship view over the same rows."
                 )
                 graph = build_product_graph(selected_id)
-                summary = graph_summary(graph)
-                if summary["edge_count"] == 0:
+                graph_summary_data = graph_summary(graph)
+                if graph_summary_data["edge_count"] == 0:
                     st.info("No relationships yet — link a company, ingredient, study, or patent first.")
                 else:
                     g1, g2 = st.columns(2)
-                    g1.metric("Nodes", summary["node_count"])
-                    g2.metric("Edges", summary["edge_count"])
-                    st.write(summary["node_types"])
+                    g1.metric("Nodes", graph_summary_data["node_count"])
+                    g2.metric("Edges", graph_summary_data["edge_count"])
+                    st.write(graph_summary_data["node_types"])
                     st.dataframe(pd.DataFrame(graph_to_edge_list(graph)), use_container_width=True, hide_index=True)
 
     with ingredients_subtab:
@@ -695,95 +1041,6 @@ with registry_tab:
             st.dataframe(pd.DataFrame([dict(i) for i in ingredients]), use_container_width=True, hide_index=True)
         else:
             st.info("No ingredients in the registry yet.")
-
-    with suppliers_subtab:
-        st.caption(
-            "Manual entry only — no supplier directory API exists to connect here. "
-            "Use this for raw-material suppliers you've identified through research, "
-            "trade shows, or direct outreach."
-        )
-        with st.form("add_supplier_form"):
-            supplier_name = st.text_input("Supplier name*")
-            s_col1, s_col2 = st.columns(2)
-            supplier_type = s_col1.text_input("Supplier type (e.g. API supplier, CDMO)")
-            country = s_col2.text_input("Country")
-            gmp_status = s_col1.text_input("GMP status")
-            material_category = s_col2.text_input("Material category")
-            supplier_source_url = st.text_input("Source URL")
-            supplier_submitted = st.form_submit_button("Add supplier")
-        if supplier_submitted and supplier_name:
-            add_supplier(
-                supplier_name, supplier_type=supplier_type or None, country=country or None,
-                gmp_status=gmp_status or None, material_category=material_category or None,
-                source_url=supplier_source_url or None,
-            )
-            st.success("Supplier added.")
-
-        suppliers = fetch_suppliers()
-        if suppliers:
-            supplier_df = pd.DataFrame([dict(s) for s in suppliers])
-            st.dataframe(supplier_df, use_container_width=True, hide_index=True)
-
-            sel_supplier_id = st.selectbox(
-                "Inspect a supplier's materials",
-                options=supplier_df["id"].tolist(),
-                format_func=lambda sid: supplier_df.loc[supplier_df["id"] == sid, "supplier_name"].iloc[0],
-            )
-            with st.form("add_supplier_material_form"):
-                trade_name = st.text_input("Trade/grade name")
-                catalog_number = st.text_input("Catalog number")
-                moq = st.text_input("Minimum order quantity")
-                material_submitted = st.form_submit_button("Add material")
-            if material_submitted and trade_name:
-                add_supplier_material(
-                    sel_supplier_id, trade_name=trade_name,
-                    catalog_number=catalog_number or None, minimum_order_quantity=moq or None,
-                )
-                st.success("Material added — refresh to see it below.")
-
-            materials = fetch_supplier_materials(sel_supplier_id)
-            if materials:
-                st.dataframe(pd.DataFrame([dict(m) for m in materials]), use_container_width=True, hide_index=True)
-        else:
-            st.info("No suppliers added yet.")
-
-    with competitors_subtab:
-        st.caption(
-            "A structured competitive-positioning note per company — separate from raw "
-            "search results, since this is analyst judgment, not a sourced fact."
-        )
-        companies = fetch_companies()
-        if not companies:
-            st.info("No companies in the registry yet — promote a product cluster first.")
-        else:
-            company_df = pd.DataFrame([dict(c) for c in companies])
-            with st.form("add_competitor_profile_form"):
-                comp_company_id = st.selectbox(
-                    "Company", options=company_df["id"].tolist(),
-                    format_func=lambda cid: company_df.loc[company_df["id"] == cid, "canonical_name"].iloc[0],
-                )
-                c1, c2 = st.columns(2)
-                strategic_segment = c1.text_input("Strategic segment")
-                threat_level = c2.text_input("Threat level")
-                competitive_advantage = st.text_area("Competitive advantage")
-                competitive_weakness = st.text_area("Competitive weakness")
-                profile_analyst = st.text_input("Your name")
-                profile_submitted = st.form_submit_button("Save competitor profile")
-            if profile_submitted:
-                add_competitor_profile(
-                    comp_company_id, strategic_segment=strategic_segment or None,
-                    threat_level=threat_level or None,
-                    competitive_advantage=competitive_advantage or None,
-                    competitive_weakness=competitive_weakness or None,
-                    analyst=profile_analyst or None,
-                )
-                st.success("Profile saved.")
-
-            profiles = fetch_competitor_profiles()
-            if profiles:
-                st.dataframe(pd.DataFrame([dict(p) for p in profiles]), use_container_width=True, hide_index=True)
-            else:
-                st.info("No competitor profiles yet.")
 
     with search_subtab:
         st.caption(
@@ -818,216 +1075,3 @@ with registry_tab:
             st.dataframe(pd.DataFrame([dict(c) for c in change_rows]), use_container_width=True, hide_index=True)
         else:
             st.info("No change events logged yet — run a check in the Monitoring tab.")
-
-with development_tab:
-    st.subheader("Product development")
-    st.caption(
-        "Formulation development, risk management, stage-gate tracking, cost modeling, "
-        "and portfolio-gap analysis — all tied to a promoted product from the Registry tab. "
-        "A market-attractive product can still fail a stop criterion here; the two are "
-        "checked independently on purpose."
-    )
-
-    dev_products = fetch_products()
-    if not dev_products:
-        st.info("No products promoted yet — go to the Registry tab first.")
-    else:
-        dev_product_df = pd.DataFrame([dict(p) for p in dev_products])
-        dev_product_id = st.selectbox(
-            "Product",
-            options=dev_product_df["id"].tolist(),
-            format_func=lambda pid: dev_product_df.loc[dev_product_df["id"] == pid, "canonical_name"].iloc[0],
-            key="dev_product_select",
-        )
-
-        (qttp_subtab, risk_subtab, stage_gate_subtab,
-         cost_subtab, portfolio_subtab) = st.tabs(
-            ["QTPP / CQA / CPP", "Risk Assessment", "Stage Gate", "Cost Model", "Portfolio Gaps"]
-        )
-
-        with qttp_subtab:
-            st.write("**Quality Target Product Profile**")
-            with st.form("qttp_form"):
-                q1, q2 = st.columns(2)
-                dosage_form = q1.text_input("Dosage form")
-                route = q2.text_input("Route")
-                strength = q1.text_input("Strength")
-                sterility_requirement = q2.text_input("Sterility requirement")
-                qttp_submitted = st.form_submit_button("Save QTTP")
-            if qttp_submitted:
-                add_qttp(dev_product_id, dosage_form=dosage_form or None, route=route or None,
-                          strength=strength or None, sterility_requirement=sterility_requirement or None)
-                st.success("Saved.")
-            existing_qttp = fetch_qttp(dev_product_id)
-            if existing_qttp:
-                st.dataframe(pd.DataFrame([dict(q) for q in existing_qttp]), use_container_width=True, hide_index=True)
-
-            st.write("**Critical Quality Attributes**")
-            with st.form("cqa_form"):
-                attribute_name = st.text_input("Attribute name")
-                c1, c2 = st.columns(2)
-                attribute_category = c1.selectbox("Category", options=[""] + CQA_CATEGORIES)
-                criticality = c2.text_input("Criticality")
-                acceptable_range = st.text_input("Acceptable range")
-                cqa_submitted = st.form_submit_button("Add CQA")
-            if cqa_submitted and attribute_name:
-                add_cqa(dev_product_id, attribute_name, attribute_category=attribute_category or None,
-                         criticality=criticality or None, acceptable_range=acceptable_range or None)
-                st.success("Added.")
-            cqas = fetch_cqas(dev_product_id)
-            if cqas:
-                st.dataframe(pd.DataFrame([dict(c) for c in cqas]), use_container_width=True, hide_index=True)
-
-            st.write("**Critical Process Parameters**")
-            with st.form("cpp_form"):
-                parameter_name = st.text_input("Parameter name")
-                process_step = st.text_input("Process step")
-                cpp_range = st.text_input("Acceptable range", key="cpp_range")
-                cpp_submitted = st.form_submit_button("Add CPP")
-            if cpp_submitted and parameter_name:
-                add_cpp(dev_product_id, parameter_name, process_step=process_step or None,
-                         acceptable_range=cpp_range or None)
-                st.success("Added.")
-            cpps = fetch_cpps(dev_product_id)
-            if cpps:
-                st.dataframe(pd.DataFrame([dict(c) for c in cpps]), use_container_width=True, hide_index=True)
-
-            st.write("**Control Strategy**")
-            with st.form("control_form"):
-                test_or_control = st.text_input("Test or control")
-                acceptance_criteria = st.text_input("Acceptance criteria")
-                control_submitted = st.form_submit_button("Add control")
-            if control_submitted and test_or_control:
-                add_control(dev_product_id, test_or_control, acceptance_criteria=acceptance_criteria or None)
-                st.success("Added.")
-            controls = fetch_controls(dev_product_id)
-            if controls:
-                st.dataframe(pd.DataFrame([dict(c) for c in controls]), use_container_width=True, hide_index=True)
-
-        with risk_subtab:
-            st.caption(
-                "Risk priority number = severity x occurrence x detectability (1-5 each, 1-125 total). "
-                "A stop-criterion match overrides any opportunity score — it's checked "
-                "independently, not folded into a single number."
-            )
-            with st.form("risk_form"):
-                risk_category = st.selectbox("Risk category", options=RISK_CATEGORIES)
-                risk_event = st.text_input("Risk event")
-                effect = st.text_area("Effect")
-                r1, r2, r3 = st.columns(3)
-                severity = r1.slider("Severity", 1, 5, 3)
-                occurrence = r2.slider("Occurrence", 1, 5, 3)
-                detectability = r3.slider("Detectability", 1, 5, 3)
-                existing_controls = st.text_input("Existing controls")
-                risk_submitted = st.form_submit_button("Add risk")
-            if risk_submitted and risk_event:
-                rpn = risk_priority_number(severity, occurrence, detectability)
-                add_risk_assessment(
-                    risk_category, risk_event, product_id=dev_product_id, effect=effect or None,
-                    severity=severity, occurrence=occurrence, detectability=detectability,
-                    risk_priority_number=rpn, existing_controls=existing_controls or None,
-                    residual_risk=risk_acceptability(rpn),
-                )
-                stops = check_stop_criteria([risk_event, effect])
-                if stops:
-                    st.error(f"Stop-criterion language detected: {', '.join(stops)} — review before proceeding.")
-                else:
-                    st.success(f"Added. RPN = {rpn} ({risk_acceptability(rpn)}).")
-
-            risks = fetch_risk_assessments(dev_product_id)
-            if risks:
-                st.dataframe(pd.DataFrame([dict(r) for r in risks]), use_container_width=True, hide_index=True)
-            else:
-                st.info("No risks logged for this product yet.")
-
-        with stage_gate_subtab:
-            current = fetch_stage_gate_decisions(dev_product_id)
-            if current:
-                st.metric("Current stage", current[0]["stage"])
-                st.metric("Last decision", current[0]["decision"])
-
-            with st.form("stage_gate_form"):
-                stage = st.selectbox("Stage", options=STAGE_GATE_STAGES)
-                decision = st.selectbox("Decision", options=STAGE_GATE_DECISIONS)
-                criteria = st.text_area("Criteria required for this gate")
-                evidence = st.text_area("Evidence presented")
-                open_risks = st.text_input("Open risks")
-                decision_owner = st.text_input("Decision owner")
-                gate_submitted = st.form_submit_button("Record decision")
-            if gate_submitted:
-                add_stage_gate_decision(
-                    dev_product_id, stage, decision, criteria=criteria or None,
-                    evidence=evidence or None, open_risks=open_risks or None,
-                    decision_owner=decision_owner or None,
-                )
-                st.success("Recorded.")
-
-            history = fetch_stage_gate_decisions(dev_product_id)
-            if history:
-                st.dataframe(pd.DataFrame([dict(h) for h in history]), use_container_width=True, hide_index=True)
-
-        with cost_subtab:
-            with st.form("cost_form"):
-                scenario = st.selectbox("Scenario", options=["base_case", "optimistic_case", "conservative_case"])
-                c1, c2, c3 = st.columns(3)
-                material_cost = c1.number_input("Material cost", min_value=0.0, value=0.0)
-                packaging_cost = c2.number_input("Packaging cost", min_value=0.0, value=0.0)
-                manufacturing_cost = c3.number_input("Manufacturing cost", min_value=0.0, value=0.0)
-                analytical_cost = c1.number_input("Analytical cost", min_value=0.0, value=0.0)
-                regulatory_cost = c2.number_input("Regulatory cost", min_value=0.0, value=0.0)
-                distribution_cost = c3.number_input("Distribution cost", min_value=0.0, value=0.0)
-                target_price = st.number_input("Target price", min_value=0.0, value=0.0)
-                fixed_investment = st.number_input("Fixed launch investment (for break-even)", min_value=0.0, value=0.0)
-                cost_submitted = st.form_submit_button("Save cost model")
-
-            if cost_submitted:
-                costs = {
-                    "material_cost": material_cost, "packaging_cost": packaging_cost,
-                    "manufacturing_cost": manufacturing_cost, "analytical_cost": analytical_cost,
-                    "regulatory_cost": regulatory_cost, "distribution_cost": distribution_cost,
-                }
-                cogs = estimated_cogs(costs)
-                margin = gross_margin(target_price, cogs)
-                bev = break_even_volume(fixed_investment, target_price, cogs)
-                add_cost_model(
-                    dev_product_id, scenario=scenario, **costs,
-                    estimated_cogs=cogs, target_price=target_price or None,
-                    gross_margin=margin, break_even_volume=bev,
-                )
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Estimated COGS", cogs)
-                col2.metric("Gross margin", f"{margin:.1%}" if margin is not None else "n/a")
-                col3.metric("Break-even volume", bev if bev is not None else "n/a")
-
-            cost_models = fetch_cost_models(dev_product_id)
-            if cost_models:
-                st.dataframe(pd.DataFrame([dict(c) for c in cost_models]), use_container_width=True, hide_index=True)
-
-        with portfolio_subtab:
-            st.caption(
-                "Not tied to a single product — a portfolio gap is about a category/segment/"
-                "geography combination your team doesn't cover yet, evaluated against what "
-                "competitors already offer there."
-            )
-            with st.form("portfolio_gap_form"):
-                category = st.text_input("Category")
-                p1, p2 = st.columns(2)
-                customer_segment = p1.text_input("Customer segment")
-                geography = p2.text_input("Geography")
-                current_coverage = st.text_input("Current coverage")
-                competitor_coverage = st.text_input("Competitor coverage")
-                recommended_action = st.selectbox("Recommended action", options=[""] + RECOMMENDED_ACTIONS)
-                gap_submitted = st.form_submit_button("Add gap")
-            if gap_submitted and category:
-                add_portfolio_gap(
-                    category, customer_segment=customer_segment or None, geography=geography or None,
-                    current_coverage=current_coverage or None, competitor_coverage=competitor_coverage or None,
-                    recommended_action=recommended_action or None,
-                )
-                st.success("Added.")
-
-            gaps = fetch_portfolio_gaps()
-            if gaps:
-                st.dataframe(pd.DataFrame([dict(g) for g in gaps]), use_container_width=True, hide_index=True)
-            else:
-                st.info("No portfolio gaps logged yet.")
