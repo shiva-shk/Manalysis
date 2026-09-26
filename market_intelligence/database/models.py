@@ -440,4 +440,39 @@ CREATE TABLE IF NOT EXISTS portfolio_gaps (
     analyst TEXT,
     created_at TEXT
 );
+
+-- Audit trail and change monitoring --
+-- No login system sits in front of this app (single-machine tool, no
+-- session/auth infrastructure), so "actor" is a free-text name someone
+-- types in, not an authenticated identity. It's provenance, not access
+-- control — good enough to answer "who logged this," not "who is
+-- allowed to."
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER,
+    details TEXT,
+    created_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+
+CREATE TABLE IF NOT EXISTS change_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER,
+    field_name TEXT,
+    old_value TEXT,
+    new_value TEXT,
+    change_date TEXT,
+    source TEXT,
+    change_type TEXT,
+    review_status TEXT DEFAULT 'awaiting_review'
+);
+
+CREATE INDEX IF NOT EXISTS idx_change_events_entity ON change_events(entity_type, entity_id);
 """

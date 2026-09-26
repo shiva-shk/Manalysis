@@ -85,11 +85,11 @@ deduplication, connector normalization, market-data validation, document
 ingestion, opportunity scoring, product profiling, cross-query entity
 clustering, the monitoring diff logic, the registry layer (entity
 promotion, field-level lineage, taxonomy validation, ingredient seed
-data, clinical studies, patents, suppliers, competitor profiles), and
-the development layer (QTPP/CQA/CPP/control strategy, risk scoring and
-stop criteria, stage-gate decisions, cost modeling, portfolio gaps) —
-all against canned data or generated fixtures, no network calls in the
-test suite.
+data, clinical studies, patents, suppliers, competitor profiles), the
+development layer (QTPP/CQA/CPP/control strategy, risk scoring and stop
+criteria, stage-gate decisions, cost modeling, portfolio gaps), and the
+knowledge graph/search/audit layer — all against canned data or
+generated fixtures, no network calls in the test suite.
 
 ## Architecture: what's built vs. deferred
 
@@ -125,12 +125,39 @@ stability and batch management (needs real lab/stability data this app
 has no way to generate), and licensing-partner scoring beyond what the
 Suppliers tab already covers.
 
-**Deferred (its "fourth priority" list, not started):** a real
-knowledge graph, semantic search, scheduled/automated monitoring,
-multi-user access and audit trails, and paid market data providers
-(IQVIA, Euromonitor, Mintel, etc.). Building all of this in one pass
-would mean a lot of thin, undertested surface area; the priority order
-in the design doc is the intended sequence for adding the rest.
+**Built ("fourth priority", partial):**
+- A knowledge graph (NetworkX), built on demand from the registry
+  tables for a single product — not a separate store to keep in sync.
+  Shown as a relationship table (`owned_by`/`manufactured_by`/
+  `distributed_by`/`contains`/`approved_by`/`studied_in`/`covered_by`)
+  in the Registry tab's product detail view.
+- Fuzzy cross-registry search (RapidFuzz) over products, aliases,
+  companies, and ingredients in one box. Named plainly as fuzzy text
+  matching, not "semantic search" — no embedding model or vector store
+  is wired in, so it won't find something by meaning or synonym unless
+  that synonym is already in the alias/synonym tables.
+- An audit log: every promotion records who did it and what it
+  touched. There's no login system in front of this single-machine
+  app, so "actor" is a free-text name typed into a form — it's
+  provenance, not access control, and the README says so rather than
+  implying real authentication exists.
+- A `change_events` table, logged from the Monitoring tab whenever a
+  re-run surfaces a record not seen before.
+
+**Not built, on purpose, not just "not yet":**
+- **Real scheduled/automated monitoring.** Streamlit's execution model
+  is request-response per page load; there's no persistent process to
+  host a background scheduler safely inside the app itself. Monitoring
+  stays on-demand (re-run a saved query, diff by identifier) rather
+  than pretending to poll continuously when it can't.
+- **Real user authentication.** Adding a login form without HTTPS
+  termination, session management, or a hosting story to secure any of
+  it would be security theater, worse than plainly not having it. The
+  audit log captures provenance without claiming to be access control.
+- **Paid market data provider integrations** (IQVIA, Euromonitor,
+  Mintel, etc.) — same reasoning as always: no unauthorized scraping,
+  and no licensed API credentials exist to connect. The Market Data
+  tab's manual/upload path remains the intended entry point.
 
 ## Known limitations
 

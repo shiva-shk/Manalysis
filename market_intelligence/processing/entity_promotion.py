@@ -19,6 +19,7 @@ from database.registry_db import (
     create_product,
     fetch_regulatory_records,
     link_product_company,
+    log_audit_event,
     upsert_company,
     upsert_patent,
 )
@@ -136,6 +137,12 @@ def promote_cluster(canonical_name: str, members: list[dict], analyst: str = "un
                     verification_status="machine_extracted",
                     analyst_comment=f"promoted by {analyst}",
                 )
+
+    log_audit_event(
+        analyst, "promote_cluster", "product", db_path=db_path,
+        entity_id=product_id,
+        details=f"promoted {len(members)} member row(s) as '{canonical_name}'",
+    )
 
     return product_id
 

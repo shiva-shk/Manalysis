@@ -12,8 +12,10 @@ import streamlit as st
 
 from analysis.cost_model import break_even_volume, estimated_cogs, gross_margin
 from analysis.entity_resolution import cluster_entities, cluster_entities_with_members
+from analysis.knowledge_graph import build_product_graph, graph_summary, graph_to_edge_list
 from analysis.opportunity_score import DIMENSIONS, opportunity_score, score_breakdown
 from analysis.product_profile import build_profile
+from analysis.registry_search import search_registry
 from analysis.risk_scoring import check_stop_criteria, risk_acceptability, risk_priority_number
 from analysis.summary import confidence_breakdown, summarize_results
 from database.db import (
@@ -41,6 +43,8 @@ from database.registry_db import (
     add_supplier,
     add_supplier_material,
     fetch_aliases,
+    fetch_audit_log,
+    fetch_change_events,
     fetch_clinical_studies,
     fetch_competitor_profiles,
     fetch_companies,
@@ -57,6 +61,7 @@ from database.registry_db import (
     fetch_products,
     fetch_qttp,
     fetch_regulatory_records,
+    log_change_event,
     fetch_risk_assessments,
     fetch_stage_gate_decisions,
     fetch_suppliers,
@@ -425,6 +430,12 @@ with monitoring_tab:
                     hide_index=True,
                 )
                 save_results(monitor_query, "monitoring_check", new_results)
+                for r in new_results:
+                    log_change_event(
+                        "search_result", "new_product",
+                        entity_id=None, field_name="identifier", new_value=r.identifier,
+                        source=r.source_name, review_status="awaiting_review",
+                    )
             else:
                 st.info("No new records since the last run.")
 
@@ -440,8 +451,9 @@ with registry_tab:
     )
 
     (promote_subtab, browse_subtab, ingredients_subtab,
-     suppliers_subtab, competitors_subtab) = st.tabs(
-        ["Promote a cluster", "Browse products", "Ingredients", "Suppliers", "Competitors"]
+     suppliers_subtab, competitors_subtab, search_subtab, audit_subtab) = st.tabs(
+        ["Promote a cluster", "Browse products", "Ingredients", "Suppliers", "Competitors",
+         "Search", "Audit Log"]
     )
 
     with promote_subtab:
@@ -575,6 +587,22 @@ with registry_tab:
             with st.expander(f"Field-level citations ({len(evidence)})"):
                 st.dataframe(pd.DataFrame([dict(e) for e in evidence]), use_container_width=True, hide_index=True)
 
+            with st.expander("Knowledge graph"):
+                st.caption(
+                    "Built on demand from the registry tables above — not a separate "
+                    "store, just a relationship view over the same rows."
+                )
+                graph = build_product_graph(selected_id)
+                summary = graph_summary(graph)
+                if summary["edge_count"] == 0:
+                    st.info("No relationships yet — link a company, ingredient, study, or patent first.")
+                else:
+                    g1, g2 = st.columns(2)
+                    g1.metric("Nodes", summary["node_count"])
+                    g2.metric("Edges", summary["edge_count"])
+                    st.write(summary["node_types"])
+                    st.dataframe(pd.DataFrame(graph_to_edge_list(graph)), use_container_width=True, hide_index=True)
+
     with ingredients_subtab:
         st.caption(
             "The ingredient registry includes a seed set of real, individually verified "
@@ -680,6 +708,40 @@ with registry_tab:
                 st.dataframe(pd.DataFrame([dict(p) for p in profiles]), use_container_width=True, hide_index=True)
             else:
                 st.info("No competitor profiles yet.")
+
+    with search_subtab:
+        st.caption(
+            "Fuzzy text search across products, aliases, companies, and ingredients in one "
+            "box — RapidFuzz matching, not embeddings-based semantic search, so it tolerates "
+            "typos and partial names but doesn't understand meaning or synonyms beyond what's "
+            "already in the alias/synonym tables."
+        )
+        registry_query = st.text_input("Search the registry")
+        if registry_query:
+            hits = search_registry(registry_query)
+            if hits:
+                st.dataframe(pd.DataFrame(hits), use_container_width=True, hide_index=True)
+            else:
+                st.info("No matches above the similarity threshold.")
+
+    with audit_subtab:
+        st.caption(
+            "Every promotion is logged here with who did it and what it touched. There's no "
+            "login system in front of this app, so 'actor' is whatever name was typed into "
+            "the promotion form — provenance, not access control."
+        )
+        audit_rows = fetch_audit_log()
+        if audit_rows:
+            st.dataframe(pd.DataFrame([dict(a) for a in audit_rows]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No audit events yet.")
+
+        st.write("**Change events** (new records surfaced by the Monitoring tab)")
+        change_rows = fetch_change_events()
+        if change_rows:
+            st.dataframe(pd.DataFrame([dict(c) for c in change_rows]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No change events logged yet — run a check in the Monitoring tab.")
 
 with development_tab:
     st.subheader("Product development")

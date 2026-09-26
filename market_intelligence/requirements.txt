@@ -7,4 +7,5 @@ beautifulsoup4>=4.12
 reportlab>=4.1
 pypdf>=4.0
 cffi>=1.16
+networkx>=3.0
 pytest>=8.0

@@ -535,3 +535,54 @@ def fetch_portfolio_gaps(db_path: str = DB_PATH) -> list[sqlite3.Row]:
     init_db(db_path)
     with get_connection(db_path) as conn:
         return conn.execute("SELECT * FROM portfolio_gaps ORDER BY created_at DESC").fetchall()
+
+
+# --- audit log ---
+
+def log_audit_event(actor: str, action: str, entity_type: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("created_at", _now())
+    cols = ["actor", "action", "entity_type"] + list(fields.keys())
+    vals = [actor, action, entity_type] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO audit_log ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})", vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_audit_log(entity_type: str | None = None, entity_id: int | None = None,
+                     limit: int = 200, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        if entity_type and entity_id is not None:
+            return conn.execute(
+                "SELECT * FROM audit_log WHERE entity_type = ? AND entity_id = ? "
+                "ORDER BY created_at DESC LIMIT ?",
+                (entity_type, entity_id, limit),
+            ).fetchall()
+        return conn.execute(
+            "SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+
+# --- change events ---
+
+def log_change_event(entity_type: str, change_type: str, db_path: str = DB_PATH, **fields) -> int:
+    init_db(db_path)
+    fields.setdefault("change_date", _now())
+    cols = ["entity_type", "change_type"] + list(fields.keys())
+    vals = [entity_type, change_type] + list(fields.values())
+    with get_connection(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO change_events ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})", vals,
+        )
+        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def fetch_change_events(limit: int = 200, db_path: str = DB_PATH) -> list[sqlite3.Row]:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM change_events ORDER BY change_date DESC LIMIT ?", (limit,)
+        ).fetchall()
