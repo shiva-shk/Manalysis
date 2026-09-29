@@ -14,10 +14,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import ema, fda, tga  # noqa: E402
+import ema, fda, labels, tga  # noqa: E402
 
 
-def build_rows() -> tuple[list[dict], list[dict]]:
+def build_rows(with_labels: bool = True) -> tuple[list[dict], list[dict]]:
     sources, rows = [], []
     for name, load, normalize in (
         (fda.SOURCE, fda.load_drugsfda, fda.normalize_fda),
@@ -32,6 +32,15 @@ def build_rows() -> tuple[list[dict], list[dict]]:
             part, status = [], f"error: {exc}"
         rows += part
         sources.append({"source": name, "last_run": started, "status": status, "count": len(part)})
+    if with_labels:
+        started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        try:
+            count = labels.enrich_fda_rows(rows)
+            status = "ok" if count else "empty"
+        except Exception as exc:
+            count, status = 0, f"error: {exc}"
+        sources.append({"source": "openFDA drug label (DailyMed SPL)", "last_run": started,
+                        "status": status, "count": count})
     for r in rows:
         if not str(r["id"]).startswith(r["region"] + "-"):
             r["id"] = f"{r['region']}-{r['id']}"
@@ -71,8 +80,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "data" / "out"))
     ap.add_argument("--split-mb", type=float, default=8)
+    ap.add_argument("--skip-labels", action="store_true", help="skip the slow indication/dosing lookup")
     args = ap.parse_args()
-    rows, sources = build_rows()
+    rows, sources = build_rows(with_labels=not args.skip_labels)
     meta = write(rows, sources, Path(args.out), args.split_mb)
     print(json.dumps(meta, indent=2))
 

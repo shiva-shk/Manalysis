@@ -16,6 +16,7 @@ Publish `web/index.html` together with the files from `data/out/` placed under `
 |---|---|---|---|
 | FDA | openFDA Drugs@FDA bulk file (`download.open.fda.gov/drug/drugsfda`) | One application (NDA, BLA or ANDA) | Date of the original (ORIG) submission that reached approval. Tentative-only applications are skipped. |
 | EMA | EMA medicines bulk JSON report | One centrally authorised human medicine | European Commission marketing authorisation date (DD/MM/YYYY in the source). Positive CHMP opinions still awaiting the decision are kept and dated by the opinion. |
+| FDA text | openFDA drug label endpoint (DailyMed SPL data) | Indication, dosing and label date for NDA and BLA rows, matched by application number | n/a |
 | TGA | Manual ARTG export, stored as `data/raw/manual/tga_artg/tga_normalized.json.gz` | One ARTG entry | From the export |
 
 Downloads are cached for 12 hours in `data/raw/cache/`.
@@ -28,6 +29,6 @@ Downloads are cached for 12 hours in `data/raw/cache/`.
 
 ## Known gaps
 
-- FDA rows have no indication or dosing text and no orphan flag. Drugs@FDA does not carry them.
+- FDA rows have no orphan flag, because Drugs@FDA does not carry it. ANDA rows have no indication or dosing text, because only NDA and BLA labels are looked up. Use `--skip-labels` to skip the slow label lookup.
 - EMA rows have no dosage form or strength. The EMA report does not publish them.
 - Veterinary EMA medicines are excluded (`normalize_ema(..., include_veterinary=True)` keeps them).

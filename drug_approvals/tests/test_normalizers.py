@@ -94,3 +94,23 @@ def test_ema_keeps_withdrawn_after_authorisation_and_positive_opinion():
     rows = normalize_ema(records)
     assert [r["status"] for r in rows] == ["Withdrawn", "CHMP positive opinion (awaiting EC decision)"]
     assert rows[1]["approval_date"] == "2026-09-10"
+
+
+from labels import _best, _clean  # noqa: E402
+
+
+def test_label_text_drops_heading_and_truncates_at_sentence():
+    text = _clean(["1 INDICATIONS AND USAGE  Drugo treats A.  It also treats B; and more C " * 1], 40)
+    assert text.startswith("Drugo treats A.")
+    assert text.endswith("...")
+    assert _clean([], 100) is None
+
+
+def test_label_choice_prefers_matching_brand_and_newest():
+    def label(brand, when, ind="x"):
+        return {"openfda": {"application_number": ["NDA1"], "brand_name": [brand],
+                            "product_type": ["HUMAN PRESCRIPTION DRUG"]},
+                "effective_time": when, "indications_and_usage": [ind]}
+    labels_ = [label("REPACK", "20260101"), label("DRUGO", "20200101"), label("DRUGO", "20240101")]
+    assert _best(labels_, "NDA1", "DRUGO")["effective_time"] == "20240101"
+    assert _best(labels_, "NDA9", "DRUGO") is None
