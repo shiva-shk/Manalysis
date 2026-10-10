@@ -1,0 +1,992 @@
+<meta charset="utf-8">
+<title>Supplements Ledger 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Vazirmatn:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --page-bg:#eef2f1; --surface:#ffffff; --surface-2:#f3f6f5; --chart-surface:#fcfcfb;
+    --border: rgba(10,22,19,0.11); --border-strong: rgba(10,22,19,0.18);
+    --text-primary:#0e1613; --text-secondary:#4c5652; --text-muted:#6f7c77;
+    --grid-line:#e1e0d9; --baseline:#c3c2b7;
+    --accent:#166a64; --accent-strong:#0e4d48; --accent-soft: rgba(22,106,100,0.10);
+    --success:#006300; --danger:#a52a20; --other-fill:#c7cdc9;
+    --cat-1:#2a78d6; --cat-2:#eb6834; --cat-3:#1baf7a; --cat-4:#eda100; --cat-5:#e87ba4; --cat-6:#008300; --cat-7:#4a3aa7; --cat-8:#e34948;
+    --shadow: 0 1px 2px rgba(10,22,19,0.06), 0 8px 24px -12px rgba(10,22,19,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --page-bg:#0a0e0d; --surface:#121817; --surface-2:#171f1d; --chart-surface:#1a1a19;
+      --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+      --text-primary:#f2f5f4; --text-secondary:#c3c2b7; --text-muted:#9a9890;
+      --grid-line:#2c2c2a; --baseline:#383835;
+      --accent:#35c9bb; --accent-strong:#7fe3d8; --accent-soft: rgba(53,201,187,0.16);
+      --success:#2fbf2f; --danger:#e2726b; --other-fill:#3a423f;
+      --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70; --cat-4:#c98500; --cat-5:#d55181; --cat-6:#2f9e2f; --cat-7:#9085e9; --cat-8:#e66767;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --page-bg:#0a0e0d; --surface:#121817; --surface-2:#171f1d; --chart-surface:#1a1a19;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+    --text-primary:#f2f5f4; --text-secondary:#c3c2b7; --text-muted:#9a9890;
+    --grid-line:#2c2c2a; --baseline:#383835;
+    --accent:#35c9bb; --accent-strong:#7fe3d8; --accent-soft: rgba(53,201,187,0.16);
+    --success:#2fbf2f; --danger:#e2726b; --other-fill:#3a423f;
+    --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70; --cat-4:#c98500; --cat-5:#d55181; --cat-6:#2f9e2f; --cat-7:#9085e9; --cat-8:#e66767;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--page-bg); color:var(--text-primary); font-family:"Public Sans","Vazirmatn",system-ui,-apple-system,"Segoe UI",sans-serif; font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,.display{ font-family:"Manrope",system-ui,sans-serif; text-wrap:balance; margin:0; }
+  .mono{ font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+  .fa{ font-family:"Vazirmatn","Public Sans",system-ui,sans-serif; }
+  button{ font-family:inherit; }
+  ::selection{ background:var(--accent-soft); }
+  .app{ max-width:1180px; margin:0 auto; padding:28px 16px 64px; }
+
+  .topbar{ padding:4px 2px 22px; border-bottom:1px solid var(--border); margin-bottom:22px; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--accent); color:#fff; font-size:19px; font-weight:800; font-family:"Manrope",sans-serif; flex:none; }
+  .brand-name{ font-size:26px; font-weight:800; letter-spacing:-0.01em; }
+  .brand-sub{ margin:8px 0 0; color:var(--text-secondary); font-size:14px; max-width:68ch; }
+  .brand-sub .yr-note{ color:var(--text-muted); }
+  .build-tag{ margin:6px 0 0; color:var(--text-muted); font-size:11px; font-family:"IBM Plex Mono",ui-monospace,monospace; letter-spacing:.03em; }
+
+  .kpi-row{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:26px; }
+  .kpi-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .kpi-label{ font-size:12.5px; color:var(--text-secondary); font-weight:600; }
+  .kpi-value-row{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .kpi-value{ font-family:"Manrope",sans-serif; font-size:26px; font-weight:800; letter-spacing:-0.01em; }
+  .kpi-unit{ font-size:12px; color:var(--text-muted); }
+  .kpi-delta{ font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+  .kpi-delta.up{ color:var(--success); } .kpi-delta.down{ color:var(--danger); }
+  .kpi-foot{ font-size:12px; color:var(--text-muted); margin-top:auto; }
+  .spark{ display:block; margin-top:2px; }
+
+  .tabs{ display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:22px; overflow-x:auto; }
+  .tab-btn{ appearance:none; border:none; background:transparent; cursor:pointer; padding:10px 16px; font-size:14.5px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+  .tab-btn:hover{ color:var(--text-primary); }
+  .tab-btn.active{ color:var(--accent-strong); border-bottom-color:var(--accent); }
+  .tab-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .tab-panel{ display:none; } .tab-panel.active{ display:block; animation:fade .15s ease; }
+  @media (prefers-reduced-motion:reduce){ .tab-panel.active{ animation:none; } }
+  @keyframes fade{ from{opacity:0} to{opacity:1} }
+  .tab-desc{ margin-top:20px; padding-top:14px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary); line-height:1.55; max-width:78ch; }
+  .tab-desc p{ margin:0 0 8px; } .tab-desc p:last-child{ margin-bottom:0; }
+  .tab-body{ min-width:0; }
+
+  .grid-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px 20px 16px; box-shadow:var(--shadow); margin-bottom:16px; min-width:0; }
+  .card-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .card-title{ font-size:15px; font-weight:700; font-family:"Manrope",sans-serif; }
+  .card-sub{ font-size:12.5px; color:var(--text-muted); }
+  .chart-surface{ background:var(--chart-surface); border-radius:10px; padding:10px 6px 4px; }
+
+  .seg-toggle{ display:inline-flex; border:1px solid var(--border-strong); border-radius:8px; overflow:hidden; }
+  .seg-toggle button{ border:none; background:var(--surface); color:var(--text-secondary); cursor:pointer; padding:5px 11px; font-size:12.5px; font-weight:600; }
+  .seg-toggle button+button{ border-left:1px solid var(--border-strong); }
+  .seg-toggle button.active{ background:var(--accent-soft); color:var(--accent-strong); }
+  .fx-bulk{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+  .fx-bulk .lbl{ font-size:13px; font-weight:700; min-width:60px; }
+  #fx-rows{ margin-top:6px; display:flex; flex-direction:column; }
+  .fx-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:4px 22px; }
+  .fx-row{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .fx-year{ font-size:13px; font-weight:700; min-width:60px; }
+  .fx-custom-input{ font-family:inherit; font-size:13px; padding:6px 10px; border-radius:7px; width:130px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-primary); }
+
+  .bar-row-head, .bar-row{ display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,2fr) auto auto auto; gap:10px; }
+  .bar-row-head{ padding:0 6px 6px; }
+  .bar-col-head{ font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); text-align:right; font-weight:600; }
+  .bar-list{ display:flex; flex-direction:column; gap:3px; }
+  .bar-row{ align-items:center; padding:5px 6px; border-radius:8px; }
+  .bar-row.click{ cursor:pointer; }
+  .bar-row:hover, .bar-row:focus-visible{ background:var(--surface-2); }
+  .bar-rank{ color:var(--text-muted); font-size:11.5px; width:18px; display:inline-block; text-align:right; margin-right:4px; }
+  .bar-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+  .bar-label .lbl-meta{ color:var(--text-muted); font-size:11.5px; margin-left:6px; }
+  .bar-track{ position:relative; height:18px; background:var(--surface-2); border-radius:5px; overflow:hidden; }
+  .bar-fill{ position:absolute; inset:0 auto 0 0; border-radius:5px; background:var(--cat-1); }
+  .bar-value{ font-size:12.5px; font-weight:700; text-align:right; min-width:60px; white-space:nowrap; }
+  .bar-secondary{ font-size:12px; color:var(--text-secondary); text-align:right; min-width:64px; }
+  .bar-growth{ font-size:11.5px; font-weight:700; text-align:right; min-width:68px; }
+  .up{ color:var(--success); } .down{ color:var(--danger); } .flat{ color:var(--text-muted); font-weight:500; }
+
+  .share-bar{ display:grid; gap:2px; height:34px; border-radius:7px; overflow:hidden; }
+  .share-seg{ min-width:2px; cursor:default; }
+  .share-legend{ display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:14px; }
+  .legend-item{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text-secondary); }
+  .legend-swatch{ width:11px; height:11px; border-radius:3px; flex:none; }
+  .legend-swatch.line{ width:14px; height:3px; border-radius:2px; }
+  .legend-name{ color:var(--text-primary); font-weight:500; }
+
+  .table-wrap{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+  table.data-table{ width:100%; border-collapse:collapse; font-size:13px; min-width:760px; }
+  table.data-table th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:600; padding:9px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0; }
+  table.data-table th.sortable{ cursor:pointer; user-select:none; }
+  table.data-table th.sortable:hover{ color:var(--text-primary); }
+  table.data-table th .arrow{ margin-left:3px; opacity:.6; }
+  table.data-table td{ padding:8px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  table.data-table tbody tr:hover{ background:var(--surface-2); }
+  table.data-table td.num{ text-align:right; white-space:nowrap; }
+  table.data-table td:first-child, table.data-table th:first-child{ position:sticky; left:0; z-index:1; background:var(--surface-2); box-shadow:1px 0 0 var(--border); }
+  table.data-table th:first-child{ z-index:2; }
+  .ellip{ max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+  .sub2{ display:block; color:var(--text-muted); font-size:11.5px; }
+  .chip{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border); }
+  .chip.flag{ background:rgba(237,161,0,0.16); color:var(--cat-4); border-color:transparent; }
+  .generic-link{ background:none; border:none; padding:0; font:inherit; color:var(--accent-strong); cursor:pointer; text-align:left; text-decoration:underline; text-decoration-color:var(--border-strong); text-underline-offset:2px; }
+  .generic-link:hover{ text-decoration-color:var(--accent-strong); }
+
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .toolbar input[type="search"], .toolbar select, .combo input{ font-family:inherit; font-size:13.5px; padding:8px 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-primary); }
+  .toolbar input[type="search"]{ min-width:220px; flex:1 1 220px; }
+  .toolbar select{ max-width:100%; }
+  .pagination{ display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:12px; font-size:12.5px; color:var(--text-secondary); }
+  .pagination button{ border:1px solid var(--border-strong); background:var(--surface); color:var(--text-primary); border-radius:7px; padding:5px 10px; cursor:pointer; font-size:12.5px; }
+  .pagination button:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .combo{ position:relative; max-width:520px; }
+  .combo input{ width:100%; font-size:14.5px; padding:11px 14px; border-radius:10px; }
+  .combo-results{ position:absolute; z-index:20; top:calc(100% + 6px); left:0; right:0; max-height:320px; overflow-y:auto; background:var(--surface); border:1px solid var(--border-strong); border-radius:10px; box-shadow:var(--shadow); display:none; }
+  .combo-results.open{ display:block; }
+  .combo-item{ padding:9px 14px; cursor:pointer; font-size:13.5px; border-bottom:1px solid var(--border); }
+  .combo-item:last-child{ border-bottom:none; }
+  .combo-item:hover, .combo-item.active{ background:var(--surface-2); }
+  .combo-item .ci-name{ display:block; } .combo-item .ci-meta{ color:var(--text-muted); font-size:11.5px; }
+  .quickchips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .chip-btn{ border:1px solid var(--border-strong); background:var(--surface); color:var(--text-secondary); border-radius:999px; padding:6px 13px; font-size:12.5px; cursor:pointer; }
+  .chip-btn:hover{ border-color:var(--accent); color:var(--accent-strong); }
+  .empty-state{ text-align:center; padding:40px 20px; color:var(--text-muted); }
+
+  #tooltip{ position:fixed; z-index:100; pointer-events:none; background:var(--text-primary); color:var(--page-bg); font-size:12.5px; padding:8px 11px; border-radius:8px; box-shadow:var(--shadow); max-width:280px; line-height:1.45; transform:translate(-50%,-100%); margin-top:-10px; }
+  #tooltip .tt-title{ font-weight:700; margin-bottom:3px; }
+  #tooltip .tt-row{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  #tooltip .tt-key{ display:inline-block; width:8px; height:8px; border-radius:2px; flex:none; }
+  #tooltip .tt-val{ font-weight:700; margin-left:auto; padding-left:10px; }
+  #tooltip[hidden]{ display:none; }
+
+  svg.chart{ display:block; width:100%; height:auto; overflow:visible; }
+  svg.chart .grid-l{ stroke:var(--grid-line); stroke-width:1; shape-rendering:crispEdges; }
+  svg.chart .axis-l{ stroke:var(--baseline); stroke-width:1; shape-rendering:crispEdges; }
+  svg.chart text{ fill:var(--text-muted); font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; }
+  svg.chart text.endlabel{ fill:var(--text-primary); font-family:"Public Sans",sans-serif; font-weight:600; font-size:12px; }
+  svg.chart .hit-col{ fill:transparent; cursor:crosshair; }
+  svg.chart .crosshair{ stroke:var(--border-strong); stroke-width:1; pointer-events:none; }
+  svg.chart .pt-ring{ stroke:var(--chart-surface); }
+  .foot-note{ margin-top:30px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); max-width:82ch; }
+
+  @media (max-width:820px){
+    .kpi-row{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .grid-2{ grid-template-columns:minmax(0,1fr); }
+    .bar-row, .bar-row-head{ grid-template-columns:minmax(0,1.3fr) minmax(0,1.6fr) auto auto auto; gap:6px; }
+    .bar-value, .bar-secondary, .bar-growth{ min-width:0; }
+  }
+  @media (max-width:520px){ .brand-name{ font-size:21px; } .card{ padding:14px 14px 12px; } }
+  @media (max-width:480px){
+    .ellip{ max-width:150px; }
+    .bar-row{ grid-template-columns:repeat(3,auto); grid-template-areas:"label label label" "track track track" "value sec grow"; row-gap:4px; column-gap:10px; padding:9px 6px; }
+    .bar-label{ grid-area:label; white-space:normal; overflow:visible; }
+    .bar-track{ grid-area:track; } .bar-value{ grid-area:value; text-align:left; } .bar-secondary{ grid-area:sec; text-align:left; } .bar-growth{ grid-area:grow; }
+  }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">S</span><span class="brand-name">Supplements Ledger 1</span></div>
+    <p class="brand-sub">Iran's dietary supplement market by ingredient family, product line and company, FY1390&ndash;1404 <span class="yr-note">(Persian calendar. FY1404 runs roughly Mar 2025 to Mar 2026)</span>.</p>
+    <p class="build-tag" id="buildTag"></p>
+  </header>
+
+  <section class="kpi-row" id="kpiRow" aria-label="Key figures"></section>
+  <section class="card" id="currency-card" aria-label="Currency"></section>
+
+  <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+    <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+    <button class="tab-btn" data-tab="companies" role="tab" aria-selected="false">Companies</button>
+    <button class="tab-btn" data-tab="explorer" role="tab" aria-selected="false">Product Explorer</button>
+    <button class="tab-btn" data-tab="familydive" role="tab" aria-selected="false">Ingredient Deep Dive</button>
+    <button class="tab-btn" data-tab="companydive" role="tab" aria-selected="false">Company Deep Dive</button>
+    <button class="tab-btn" data-tab="categories" role="tab" aria-selected="false">Categories</button>
+    <button class="tab-btn" data-tab="forms" role="tab" aria-selected="false">Dosage Forms</button>
+    <button class="tab-btn" data-tab="ledger" role="tab" aria-selected="false">Ledger Lines</button>
+  </nav>
+
+  <main>
+    <section class="tab-panel active" id="panel-overview"></section>
+    <section class="tab-panel" id="panel-companies"></section>
+    <section class="tab-panel" id="panel-explorer"></section>
+    <section class="tab-panel" id="panel-familydive"></section>
+    <section class="tab-panel" id="panel-companydive"></section>
+    <section class="tab-panel" id="panel-categories"></section>
+    <section class="tab-panel" id="panel-forms"></section>
+    <section class="tab-panel" id="panel-ledger"></section>
+  </main>
+
+  <p class="foot-note">Figures are summed from the supplement producers syndicate yearbooks (sales by manufacturers to distributors), cleaned and combined into one ledger. FY1390 to FY1395 come from a single combined yearbook, FY1396 to FY1404 from yearly editions. A product line is one brand (or product name) of one company in one dosage form, matched across years by name, so a renamed product shows up as a new line. Ingredient families and categories are keyword groupings built from what each company reported. Values are nominal rials and are not adjusted for inflation. The FY1403 edition lists far fewer companies than FY1402 and its publication date looks mistyped, so year on year changes into and out of FY1403 should be read with care.</p>
+</div>
+<div id="tooltip" role="tooltip" hidden></div>
+
+<script id="dashboard-data" type="application/json">__DATA__</script>
+<script>
+(function(){
+  'use strict';
+  var D = JSON.parse(document.getElementById('dashboard-data').textContent);
+  var YEARS = D.years, N = YEARS.length, LATEST = N - 1, PREV = N - 2, CAGR_WINDOW = 4;
+  var THIN = YEARS.indexOf(1403);
+  var CAT = ['var(--cat-1)','var(--cat-2)','var(--cat-3)','var(--cat-4)','var(--cat-5)','var(--cat-6)','var(--cat-7)','var(--cat-8)'];
+  var $ = function(id){ return document.getElementById(id); };
+  var ttEl = $('tooltip');
+
+  /* ---------------- data model ---------------- */
+  var products = D.products.map(function(p, i){ p.i = i; p.rIRR = p.r.slice(); return p; });
+  var lines = D.lines;
+  var CURRENCY = 'IRR';
+  var FX_RATES = YEARS.map(function(){ return 285000; });
+  var FX_CHOICE = YEARS.map(function(){ return '285000'; });
+  function fx(i){ return FX_RATES[i] > 0 ? FX_RATES[i] : 285000; }
+  function conv(v, i){ return CURRENCY === 'USD' ? v / fx(i) : v; }
+
+  var totals, compAgg, famAgg, catAgg, formAgg;
+  function blank(){ return { u: new Array(N).fill(0), r: new Array(N).fill(0), np: 0 }; }
+  function aggregate(count, keyFn){
+    var out = []; for (var i = 0; i < count; i++) out.push(blank());
+    products.forEach(function(p){
+      var a = out[keyFn(p)];
+      for (var y = 0; y < N; y++){ a.u[y] += p.u[y]; a.r[y] += p.r[y]; }
+      if (p.u[LATEST] > 0 || p.r[LATEST] > 0) a.np++;
+    });
+    return out;
+  }
+  function rebuild(){
+    products.forEach(function(p){ p.r = p.rIRR.map(function(v, i){ return conv(v, i); }); });
+    totals = YEARS.map(function(_, y){ return [0, 0]; });
+    products.forEach(function(p){ for (var y = 0; y < N; y++){ totals[y][0] += p.u[y]; totals[y][1] += p.r[y]; } });
+    compAgg = aggregate(D.companies.length, function(p){ return p.c; });
+    famAgg = aggregate(D.fams.length, function(p){ return p.g; });
+    catAgg = aggregate(D.cats.length, function(p){ return p.k; });
+    formAgg = aggregate(D.forms.length, function(p){ return p.f; });
+  }
+  rebuild();
+
+  /* ---------------- formatters & growth ---------------- */
+  var nfCompact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+  var nfFull = new Intl.NumberFormat('en-US');
+  var fmtRial = function(v){ return nfCompact.format(v); };
+  var fmtUnits = function(v){ return nfCompact.format(v); };
+  var fmtFullRial = function(v){ return nfFull.format(Math.round(v)) + ' ' + CURRENCY; };
+  var fmtFullUnits = function(v){ return nfFull.format(Math.round(v)) + ' units'; };
+  function fmtPrice(v){ return v == null ? '' : (CURRENCY === 'USD' ? v.toFixed(3) : nfFull.format(Math.round(v))); }
+  function pct(a, b){ return b ? (a - b) / b * 100 : null; }
+  function fmtPct(p){ return (p == null || !isFinite(p)) ? '—' : (p >= 0 ? '+' : '') + p.toFixed(1) + '%'; }
+  function growthClass(p){ return p == null ? 'flat' : (p >= 0 ? 'up' : 'down'); }
+  function esc(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function growthSeries(arr, latestIdx){
+    var latest = arr[latestIdx], start = Math.max(0, latestIdx - CAGR_WINDOW), first = -1;
+    for (var i = start; i <= latestIdx; i++){ if (arr[i] > 0){ first = i; break; } }
+    if (first === -1 || !(latest > 0)) return { pct: null, isNew: false, years: 0, first: -1 };
+    if (first === latestIdx) return { pct: null, isNew: true, years: 0, first: first };
+    var yrs = latestIdx - first;
+    return { pct: (Math.pow(latest / arr[first], 1 / yrs) - 1) * 100, isNew: false, years: yrs, first: first };
+  }
+  function growthCell(arr){
+    var g = growthSeries(arr, LATEST);
+    if (g.isNew) return { text: 'New', cls: 'up', title: 'First appears in FY' + YEARS[LATEST] };
+    if (g.pct == null) return { text: '—', cls: 'flat', title: 'No data to compute a rate' };
+    return { text: fmtPct(g.pct), cls: g.pct >= 0 ? 'up' : 'down', title: 'CAGR since FY' + YEARS[g.first] + ' (' + g.years + '-yr)' };
+  }
+  function yoyCell(a, b){
+    var p = pct(a, b);
+    if (p == null) return { text: '—', cls: 'flat', title: 'No prior-year data' };
+    return { text: fmtPct(p), cls: p >= 0 ? 'up' : 'down', title: 'vs FY' + YEARS[PREV] };
+  }
+  function paintGrowth(td, c){ td.textContent = c.text; td.title = c.title; td.classList.add(c.cls); }
+  function price(r, u){ return u > 0 && r > 0 ? r / u : null; }
+  function priceSeries(a){ return a.r.map(function(v, i){ return a.u[i] > 0 && v > 0 ? v / a.u[i] : 0; }); }
+
+  /* ---------------- tooltip ---------------- */
+  function positionTooltip(x, y){ ttEl.style.left = x + 'px'; ttEl.style.top = y + 'px'; }
+  function hideTooltip(){ ttEl.hidden = true; }
+  function showTooltipRows(x, y, title, rows){
+    ttEl.textContent = '';
+    if (title){ var t = document.createElement('div'); t.className = 'tt-title'; t.textContent = title; ttEl.appendChild(t); }
+    rows.forEach(function(r){
+      var row = document.createElement('div'); row.className = 'tt-row';
+      if (r.color){ var k = document.createElement('span'); k.className = 'tt-key'; k.style.background = r.color; row.appendChild(k); }
+      var l = document.createElement('span'); l.textContent = r.label; row.appendChild(l);
+      var v = document.createElement('span'); v.className = 'tt-val'; v.textContent = r.value; row.appendChild(v);
+      ttEl.appendChild(row);
+    });
+    ttEl.hidden = false; positionTooltip(x, y);
+  }
+  function hover(el, openFn){
+    el.addEventListener('pointerenter', function(e){ openFn(e.clientX, e.clientY); });
+    el.addEventListener('pointermove', function(e){ positionTooltip(e.clientX, e.clientY); });
+    el.addEventListener('pointerleave', hideTooltip);
+    el.addEventListener('focus', function(){ var r = el.getBoundingClientRect(); openFn(r.left + Math.min(r.width / 2, 40), r.top); });
+    el.addEventListener('blur', hideTooltip);
+  }
+
+  /* ---------------- sparkline ---------------- */
+  function sparklineSVG(values, color){
+    var W = 110, H = 30, pad = 3, n = values.length;
+    var max = Math.max.apply(null, values.concat([1])) * 1.12;
+    var pts = values.map(function(v, i){ return [pad + (W - 2 * pad) * i / (n - 1), H - pad - (H - 2 * pad) * (v / max)]; });
+    var d = pts.map(function(p, i){ return (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    var last = pts[n - 1];
+    return '<svg class="spark" width="110" height="30" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"><path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="2.6" fill="' + color + '"/></svg>';
+  }
+
+  /* ---------------- trend chart ---------------- */
+  function renderTrendChart(container, o){
+    var series = o.series, n = YEARS.length, fmt = o.formatter;
+    var W = 640, H = 200, padL = 56, padR = 18, padT = 18, padB = 30, iw = W - padL - padR, ih = H - padT - padB;
+    var maxV = 0; series.forEach(function(s){ s.values.forEach(function(v){ if (v > maxV) maxV = v; }); });
+    maxV = (maxV <= 0 ? 1 : maxV) * 1.15;
+    var xAt = function(i){ return padL + iw * i / (n - 1); }, yAt = function(v){ return padT + ih * (1 - v / maxV); };
+    var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.aria || 'trend chart') + '">';
+    for (var g = 0; g <= 4; g++){
+      var gv = maxV * g / 4, gy = yAt(gv);
+      svg += '<line class="grid-l" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + gy.toFixed(1) + '" y2="' + gy.toFixed(1) + '"/><text x="' + (padL - 8) + '" y="' + (gy + 3.5).toFixed(1) + '" text-anchor="end">' + fmt(gv) + '</text>';
+    }
+    svg += '<line class="axis-l" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yAt(0).toFixed(1) + '" y2="' + yAt(0).toFixed(1) + '"/>';
+    if (THIN >= 0 && !o.noThin){
+      var cw = iw / (n - 1), tx = xAt(THIN) - cw / 2;
+      svg += '<rect x="' + tx.toFixed(1) + '" y="' + padT + '" width="' + cw.toFixed(1) + '" height="' + ih + '" fill="var(--cat-4)" fill-opacity="0.1"/><text x="' + xAt(THIN).toFixed(1) + '" y="' + (padT + 10) + '" text-anchor="middle" style="fill:var(--cat-4);font-weight:700;font-size:9px">THIN</text>';
+    }
+    series.forEach(function(s, si){
+      var pts = s.values.map(function(v, i){ return [xAt(i), yAt(v)]; });
+      if (series.length === 1){
+        svg += '<path d="M ' + pts[0][0].toFixed(1) + ',' + yAt(0).toFixed(1) + ' ' + pts.map(function(p){ return 'L ' + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + ' L ' + pts[n - 1][0].toFixed(1) + ',' + yAt(0).toFixed(1) + ' Z" fill="' + s.color + '" fill-opacity="0.1"/>';
+      }
+      svg += '<path d="' + pts.map(function(p, i){ return (i === 0 ? 'M ' : 'L ') + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '" fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      pts.forEach(function(p, i){ svg += '<circle class="pt-ring" data-i="' + i + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.6" fill="' + s.color + '" stroke-width="2"/>'; });
+      if (series.length === 1){ var l = pts[n - 1]; svg += '<text class="endlabel" x="' + (l[0] - 6).toFixed(1) + '" y="' + (l[1] - 10).toFixed(1) + '" text-anchor="end">' + fmt(s.values[n - 1]) + '</text>'; }
+    });
+    var colW = iw / n;
+    for (var i = 0; i < n; i++){
+      if (i % 2 === 0 || n <= 8) svg += '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + (n > 10 ? "'" + String(YEARS[i]).slice(2) : 'FY' + YEARS[i]) + '</text>';
+      svg += '<rect class="hit-col" data-i="' + i + '" x="' + (padL + colW * i).toFixed(1) + '" y="' + padT + '" width="' + colW.toFixed(1) + '" height="' + ih + '" tabindex="0" aria-label="FY' + YEARS[i] + '"/>';
+    }
+    svg += '<line class="crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + ih) + '" style="opacity:0"/></svg>';
+    container.innerHTML = svg;
+    if (series.length >= 2){
+      var lg = document.createElement('div'); lg.className = 'share-legend';
+      series.forEach(function(s){ var it = document.createElement('span'); it.className = 'legend-item'; it.innerHTML = '<span class="legend-swatch line" style="background:' + s.color + '"></span><span class="legend-name"></span>'; it.lastChild.textContent = s.name; lg.appendChild(it); });
+      container.appendChild(lg);
+    }
+    var el = container.querySelector('svg'), xh = el.querySelector('.crosshair');
+    function show(i, cx, cy){
+      var x = xAt(i); xh.setAttribute('x1', x); xh.setAttribute('x2', x); xh.style.opacity = 1;
+      el.querySelectorAll('circle.pt-ring').forEach(function(c){ c.setAttribute('r', +c.dataset.i === i ? '5.5' : '3.6'); });
+      var rows = series.map(function(s){ return { color: s.color, label: s.name, value: fmt(s.values[i]) }; });
+      if (i === THIN && !o.noThin) rows.push({ label: 'Thin year', value: 'few companies' });
+      showTooltipRows(cx, cy, 'FY' + YEARS[i], rows);
+    }
+    function off(){ xh.style.opacity = 0; el.querySelectorAll('circle.pt-ring').forEach(function(c){ c.setAttribute('r', '3.6'); }); hideTooltip(); }
+    el.querySelectorAll('.hit-col').forEach(function(r){
+      var i = +r.dataset.i;
+      r.addEventListener('pointermove', function(e){ show(i, e.clientX, e.clientY); });
+      r.addEventListener('pointerenter', function(e){ show(i, e.clientX, e.clientY); });
+      r.addEventListener('pointerleave', off);
+      r.addEventListener('focus', function(){ var b = r.getBoundingClientRect(); show(i, b.left + b.width / 2, b.top); });
+      r.addEventListener('blur', off);
+    });
+  }
+
+  /* ---------------- ranked bars ---------------- */
+  function renderRankedBars(container, items, o){
+    container.innerHTML = '';
+    var head = document.createElement('div'); head.className = 'bar-row-head';
+    head.innerHTML = '<div></div><div></div><div class="bar-col-head"></div><div class="bar-col-head"></div><div class="bar-col-head">CAGR</div>';
+    head.children[2].textContent = o.valueHeader || ''; head.children[3].textContent = o.secondaryHeader || '';
+    container.appendChild(head);
+    var list = document.createElement('div'); list.className = 'bar-list';
+    var maxV = Math.max.apply(null, items.map(function(it){ return it.value; }).concat([1]));
+    items.forEach(function(it, idx){
+      var row = document.createElement('div'); row.className = 'bar-row' + (it.onClick ? ' click' : ''); row.tabIndex = 0;
+      var label = document.createElement('div'); label.className = 'bar-label fa'; label.title = it.label;
+      label.innerHTML = '<span class="bar-rank mono">' + (idx + 1) + '.</span>';
+      var nm = document.createElement('span'); nm.textContent = it.label; label.appendChild(nm);
+      if (it.meta){ var mt = document.createElement('span'); mt.className = 'lbl-meta'; mt.textContent = it.meta; label.appendChild(mt); }
+      var track = document.createElement('div'); track.className = 'bar-track';
+      var fill = document.createElement('div'); fill.className = 'bar-fill'; fill.style.width = Math.max(2, it.value / maxV * 100).toFixed(1) + '%'; fill.style.background = it.color || 'var(--cat-1)';
+      track.appendChild(fill);
+      var val = document.createElement('div'); val.className = 'bar-value mono'; val.textContent = o.formatter(it.value);
+      var sec = document.createElement('div'); sec.className = 'bar-secondary mono'; sec.textContent = it.secondary != null ? o.secondaryFormatter(it.secondary) : '';
+      var gr = document.createElement('div'); gr.className = 'bar-growth mono ' + growthClass(it.growth);
+      if (it.isNew){ gr.textContent = 'New'; gr.className = 'bar-growth mono up'; }
+      else if (it.growth != null) gr.textContent = (it.growth >= 0 ? '▲ ' : '▼ ') + fmtPct(it.growth);
+      else gr.textContent = '—';
+      [label, track, val, sec, gr].forEach(function(x){ row.appendChild(x); });
+      hover(row, function(cx, cy){
+        var rows = [{ label: o.valueLabel || 'Value', value: o.fullFormatter(it.value) }];
+        if (it.secondary != null) rows.push({ label: o.secondaryLabel || 'Other', value: o.secondaryFullFormatter(it.secondary) });
+        if (it.isNew) rows.push({ label: 'CAGR', value: 'New this period' });
+        else if (it.growth != null) rows.push({ label: it.growthYears ? it.growthYears + '-yr CAGR' : 'CAGR', value: fmtPct(it.growth) });
+        if (it.yoy != null) rows.push({ label: 'YoY (latest)', value: fmtPct(it.yoy) });
+        showTooltipRows(cx, cy, it.label, rows);
+      });
+      if (it.onClick){
+        row.addEventListener('click', it.onClick);
+        row.addEventListener('keydown', function(e){ if (e.key === 'Enter') it.onClick(); });
+      }
+      list.appendChild(row);
+    });
+    container.appendChild(list);
+  }
+  function rankItems(entries, metric, color, onClickFn){
+    // entries: [{label, meta, u:[], r:[]}]
+    return entries.map(function(e){
+      var arr = metric === 'r' ? e.r : e.u, alt = metric === 'r' ? e.u : e.r, gs = growthSeries(arr, LATEST);
+      return { label: e.label, meta: e.meta, value: arr[LATEST], secondary: alt[LATEST], growth: gs.pct, growthYears: gs.years, isNew: gs.isNew, yoy: pct(arr[LATEST], arr[PREV]), color: e.color || color, onClick: onClickFn ? function(){ onClickFn(e); } : null };
+    }).filter(function(it){ return it.value > 0; }).sort(function(a, b){ return b.value - a.value; });
+  }
+  function rankOpts(metric){
+    var r = metric === 'r';
+    return { formatter: r ? fmtRial : fmtUnits, secondaryFormatter: r ? fmtUnits : fmtRial, fullFormatter: r ? fmtFullRial : fmtFullUnits, secondaryFullFormatter: r ? fmtFullUnits : fmtFullRial,
+      valueLabel: (r ? 'Value FY' : 'Units FY') + YEARS[LATEST], secondaryLabel: (r ? 'Units FY' : 'Value FY') + YEARS[LATEST], valueHeader: r ? 'Value' : 'Units', secondaryHeader: r ? 'Units' : 'Value' };
+  }
+
+  /* ---------------- share bar ---------------- */
+  function renderShareBar(container, segs){
+    container.innerHTML = '';
+    var bar = document.createElement('div'); bar.className = 'share-bar';
+    bar.style.gridTemplateColumns = segs.map(function(s){ return Math.max(s.value, 0.0001) + 'fr'; }).join(' ');
+    segs.forEach(function(s){
+      var seg = document.createElement('div'); seg.className = 'share-seg'; seg.style.background = s.color; seg.tabIndex = 0;
+      hover(seg, function(cx, cy){ showTooltipRows(cx, cy, s.label, [{ label: 'Share', value: s.pctLabel }, { label: 'Value', value: s.valueLabel }]); });
+      bar.appendChild(seg);
+    });
+    container.appendChild(bar);
+    var lg = document.createElement('div'); lg.className = 'share-legend';
+    segs.forEach(function(s){
+      var it = document.createElement('span'); it.className = 'legend-item';
+      it.innerHTML = '<span class="legend-swatch" style="background:' + s.color + '"></span><span class="legend-name fa"></span><span></span>';
+      it.children[1].textContent = s.label; it.children[2].textContent = ' — ' + s.pctLabel; lg.appendChild(it);
+    });
+    container.appendChild(lg);
+  }
+  function shareSegs(entries, valueFn, total, fullFmt, topN){
+    var sorted = entries.slice().sort(function(a, b){ return valueFn(b) - valueFn(a); }).filter(function(e){ return valueFn(e) > 0; });
+    var top = sorted.slice(0, topN), rest = sorted.slice(topN).reduce(function(s, e){ return s + valueFn(e); }, 0);
+    var segs = top.map(function(e, i){ var v = valueFn(e); return { label: e.label, value: v, color: CAT[i % CAT.length], pctLabel: (v / total * 100).toFixed(1) + '%', valueLabel: fullFmt(v) }; });
+    if (sorted.length > topN) segs.push({ label: 'Other ' + (sorted.length - topN), value: rest, color: 'var(--other-fill)', pctLabel: (rest / total * 100).toFixed(1) + '%', valueLabel: fullFmt(rest) });
+    return segs;
+  }
+
+  /* ---------------- sortable table ---------------- */
+  function makeTable(cfg){
+    var cols = cfg.columns, size = cfg.pageSize || 25, root = $(cfg.mountId);
+    var def = cols.filter(function(c){ return c.defaultSort; })[0] || cols[0];
+    var sortKey = def.key, sortDir = def.defaultDir || 'desc', page = 0, query = '';
+    function rows(){
+      cols = cfg.columns;
+      var r = cfg.getRows();
+      if (query) r = r.filter(function(x){ return cfg.searchFn(x, query); });
+      var col = cols.filter(function(c){ return c.key === sortKey; })[0];
+      return r.slice().sort(function(a, b){
+        var av = col.sortVal(a), bv = col.sortVal(b);
+        if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+    }
+    function render(){
+      var all = rows(), pages = Math.max(1, Math.ceil(all.length / size));
+      if (page >= pages) page = pages - 1;
+      var pr = all.slice(page * size, page * size + size);
+      root.innerHTML = '';
+      var wrap = document.createElement('div'); wrap.className = 'table-wrap';
+      var t = document.createElement('table'); t.className = 'data-table';
+      var th = document.createElement('thead'), trh = document.createElement('tr');
+      cols.forEach(function(c){
+        var h = document.createElement('th');
+        if (c.sortable !== false){ h.classList.add('sortable'); h.addEventListener('click', function(){ if (sortKey === c.key) sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortKey = c.key; sortDir = c.defaultDir || 'desc'; } page = 0; render(); }); }
+        if (c.align === 'num') h.style.textAlign = 'right';
+        h.appendChild(document.createTextNode(c.label));
+        if (sortKey === c.key){ var a = document.createElement('span'); a.className = 'arrow'; a.textContent = sortDir === 'asc' ? '▲' : '▼'; h.appendChild(a); }
+        trh.appendChild(h);
+      });
+      th.appendChild(trh); t.appendChild(th);
+      var tb = document.createElement('tbody');
+      if (!pr.length){ var tr0 = document.createElement('tr'), td0 = document.createElement('td'); td0.colSpan = cols.length; td0.className = 'empty-state'; td0.textContent = 'No matching rows.'; tr0.appendChild(td0); tb.appendChild(tr0); }
+      pr.forEach(function(r){
+        var tr = document.createElement('tr');
+        cols.forEach(function(c){ var td = document.createElement('td'); if (c.align === 'num') td.classList.add('num', 'mono'); c.render(td, r); tr.appendChild(td); });
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb); wrap.appendChild(t); root.appendChild(wrap);
+      var pg = document.createElement('div'); pg.className = 'pagination';
+      var info = document.createElement('span'); info.textContent = all.length ? (page * size + 1) + '–' + Math.min(all.length, (page + 1) * size) + ' of ' + all.length.toLocaleString() : '0 rows';
+      var pb = document.createElement('button'); pb.textContent = 'Prev'; pb.disabled = page <= 0; pb.addEventListener('click', function(){ page--; render(); });
+      var nb = document.createElement('button'); nb.textContent = 'Next'; nb.disabled = page >= pages - 1; nb.addEventListener('click', function(){ page++; render(); });
+      pg.appendChild(info); pg.appendChild(pb); pg.appendChild(nb); root.appendChild(pg);
+    }
+    return { render: render, setQuery: function(q){ query = q; page = 0; render(); }, reset: function(){ page = 0; render(); } };
+  }
+  function linkBtn(td, text, title, fn, cls){ var b = document.createElement('button'); b.className = 'generic-link ellip ' + (cls || ''); b.title = title; b.textContent = text; b.addEventListener('click', fn); td.appendChild(b); }
+  function sparkCell(td, arr, color){ var h = document.createElement('div'); h.innerHTML = sparklineSVG(arr, color || 'var(--cat-1)'); td.appendChild(h.firstChild); }
+  function kpiCards(host, cards, small){
+    host.innerHTML = '';
+    cards.forEach(function(c){
+      var card = document.createElement('div'); card.className = 'kpi-card';
+      var h = '<div class="kpi-label"></div><div class="kpi-value-row"><span class="kpi-value mono"' + (small ? ' style="font-size:21px"' : '') + '></span><span class="kpi-unit"></span></div>';
+      card.innerHTML = h;
+      card.children[0].textContent = c.label; card.querySelector('.kpi-value').textContent = c.value; card.querySelector('.kpi-unit').textContent = c.unit || '';
+      card.querySelector('.kpi-value').style.fontFamily = '"Manrope",sans-serif';
+      if (c.delta != null){ var d = document.createElement('span'); d.className = 'kpi-delta ' + (c.delta >= 0 ? 'up' : 'down'); d.textContent = (c.delta >= 0 ? '▲ ' : '▼ ') + fmtPct(c.delta) + ' vs FY' + YEARS[PREV]; card.appendChild(d); }
+      if (c.spark){ var s = document.createElement('div'); s.innerHTML = sparklineSVG(c.spark, c.color); card.appendChild(s.firstChild); }
+      if (c.foot){ var f = document.createElement('div'); f.className = 'kpi-foot'; f.textContent = c.foot; card.appendChild(f); }
+      host.appendChild(card);
+    });
+  }
+  function metricToggle(id){ return '<div class="seg-toggle" id="' + id + '"><button data-metric="r" class="active">Value</button><button data-metric="u">Units</button></div>'; }
+  function wireMetric(id, draw){
+    $(id).addEventListener('click', function(e){
+      var b = e.target.closest('button'); if (!b) return;
+      $(id).querySelectorAll('button').forEach(function(x){ x.classList.toggle('active', x === b); });
+      draw(b.dataset.metric);
+    });
+  }
+  function combo(inputId, resultsId, getItems, onPick){
+    var inp = $(inputId), res = $(resultsId), act = -1;
+    function items(){ return Array.prototype.slice.call(res.querySelectorAll('.combo-item')); }
+    function paint(){ items().forEach(function(it, i){ it.classList.toggle('active', i === act); }); var cur = items()[act]; if (cur) cur.scrollIntoView({ block: 'nearest' }); }
+    inp.addEventListener('input', function(){
+      var q = inp.value.trim().toLowerCase(); res.innerHTML = ''; act = -1;
+      if (q.length < 1){ res.classList.remove('open'); return; }
+      var m = getItems(q).slice(0, 30);
+      if (!m.length){ res.classList.remove('open'); return; }
+      m.forEach(function(x){
+        var it = document.createElement('div'); it.className = 'combo-item';
+        it.innerHTML = '<span class="ci-name fa"></span><span class="ci-meta"></span>';
+        it.children[0].textContent = x.name; it.children[1].textContent = x.meta;
+        it.addEventListener('click', function(){ onPick(x.id); res.classList.remove('open'); inp.value = x.name; });
+        res.appendChild(it);
+      });
+      res.classList.add('open');
+    });
+    inp.addEventListener('keydown', function(e){
+      if (!res.classList.contains('open')) return;
+      var n = items().length;
+      if (e.key === 'ArrowDown'){ e.preventDefault(); act = Math.min(n - 1, act + 1); paint(); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); act = Math.max(0, act - 1); paint(); }
+      else if (e.key === 'Enter'){ if (items()[act]) items()[act].click(); }
+      else if (e.key === 'Escape') res.classList.remove('open');
+    });
+    document.addEventListener('click', function(e){ if (!e.target.closest('#' + inputId) && !e.target.closest('#' + resultsId)) res.classList.remove('open'); });
+  }
+
+  /* ---------------- derived views ---------------- */
+  var famEntries = function(){ return D.fams.map(function(n, i){ return { id: i, label: n, u: famAgg[i].u, r: famAgg[i].r, np: famAgg[i].np }; }); };
+  var catEntries = function(){ return D.cats.map(function(n, i){ return { id: i, label: n, u: catAgg[i].u, r: catAgg[i].r, np: catAgg[i].np }; }); };
+  var formEntries = function(){ return D.forms.map(function(n, i){ return { id: i, label: n, u: formAgg[i].u, r: formAgg[i].r, np: formAgg[i].np }; }); };
+  var compEntries = function(){ return D.companies.map(function(n, i){ return { id: i, label: n, u: compAgg[i].u, r: compAgg[i].r, np: compAgg[i].np }; }); };
+  function productLabel(p){ return p.l; }
+
+  /* ---------------- currency card ---------------- */
+  function renderCurrencyBar(){
+    var host = $('currency-card');
+    var rowsHtml = YEARS.map(function(y, i){
+      var ch = FX_CHOICE[i], rate = FX_RATES[i] > 0 ? FX_RATES[i] : 285000;
+      return '<div class="fx-row"><span class="fx-year">FY' + y + '</span><div class="seg-toggle fx-toggle" data-yi="' + i + '">' +
+        '<button data-rate="285000" class="' + (ch === '285000' ? 'active' : '') + '">285,000</button><button data-rate="800000" class="' + (ch === '800000' ? 'active' : '') + '">800,000</button><button data-rate="custom" class="' + (ch === 'custom' ? 'active' : '') + '">Custom</button></div>' +
+        '<input type="number" class="fx-custom-input" data-yi="' + i + '" min="1" step="1" placeholder="IRR per 1 USD" aria-label="Rate for FY' + y + '" value="' + rate + '" style="' + (ch === 'custom' ? '' : 'display:none;') + '"></div>';
+    }).join('');
+    host.innerHTML = '<div class="card-head"><div><div class="card-title">Currency</div><div class="card-sub">Show figures in Iranian rial or US dollars. In USD mode, set the exchange rate for each fiscal year. One rate for every year gives a constant-currency view.</div></div>' +
+      '<div class="seg-toggle" id="cur-toggle"><button data-cur="IRR" class="' + (CURRENCY === 'IRR' ? 'active' : '') + '">IRR</button><button data-cur="USD" class="' + (CURRENCY === 'USD' ? 'active' : '') + '">USD</button></div></div>' +
+      '<div id="fx-rows" style="' + (CURRENCY === 'USD' ? '' : 'display:none;') + '"><div class="fx-bulk"><span class="lbl">All years</span><div class="seg-toggle" id="fx-all"><button data-rate="285000">285,000</button><button data-rate="800000">800,000</button></div></div><div class="fx-grid">' + rowsHtml + '</div></div>';
+    $('cur-toggle').querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ if (b.dataset.cur === CURRENCY) return; CURRENCY = b.dataset.cur; applyCurrency(); renderCurrencyBar(); });
+    });
+    if (CURRENCY !== 'USD') return;
+    $('fx-all').querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ YEARS.forEach(function(_, i){ FX_RATES[i] = +b.dataset.rate; FX_CHOICE[i] = b.dataset.rate; }); applyCurrency(); renderCurrencyBar(); });
+    });
+    host.querySelectorAll('.fx-toggle').forEach(function(tog){
+      var yi = +tog.dataset.yi;
+      tog.querySelectorAll('button').forEach(function(b){
+        b.addEventListener('click', function(){
+          var rate = b.dataset.rate;
+          if (rate === FX_CHOICE[yi] && rate !== 'custom') return;
+          FX_CHOICE[yi] = rate;
+          if (rate !== 'custom'){ FX_RATES[yi] = +rate; applyCurrency(); renderCurrencyBar(); }
+          else { renderCurrencyBar(); var inp = host.querySelector('.fx-custom-input[data-yi="' + yi + '"]'); if (inp){ inp.focus(); inp.select(); } }
+        });
+      });
+    });
+    var deb = {};
+    host.querySelectorAll('.fx-custom-input').forEach(function(inp){
+      inp.addEventListener('input', function(){ var yi = +inp.dataset.yi, v = parseFloat(inp.value); if (!(v > 0)) return; FX_RATES[yi] = v; clearTimeout(deb[yi]); deb[yi] = setTimeout(applyCurrency, 400); });
+    });
+  }
+  function applyCurrency(){
+    rebuild(); renderKPIs(); renderOverview(); renderCompanies(); renderExplorer(); renderFamilyDive(); renderCompanyDive(); renderCategories(); renderForms(); renderLedger();
+  }
+
+  /* ---------------- KPIs ---------------- */
+  function renderKPIs(){
+    var vL = totals[LATEST][1], vP = totals[PREV][1], uL = totals[LATEST][0], uP = totals[PREV][0];
+    var base = 0, span = LATEST - base;
+    var cagrV = (Math.pow(vL / totals[base][1], 1 / span) - 1) * 100, cagrU = (Math.pow(uL / totals[base][0], 1 / span) - 1) * 100;
+    var pr = totals.map(function(t){ return t[0] > 0 ? t[1] / t[0] : 0; });
+    var activeC = compAgg.filter(function(a){ return a.r[LATEST] > 0 || a.u[LATEST] > 0; }).length;
+    var activeP = products.filter(function(p){ return p.u[LATEST] > 0 || p.r[LATEST] > 0; }).length;
+    var foot = (span + 1) + '-yr CAGR since FY' + YEARS[base];
+    kpiCards($('kpiRow'), [
+      { label: 'Market value · FY' + YEARS[LATEST], value: fmtRial(vL), unit: CURRENCY, delta: pct(vL, vP), spark: totals.map(function(t){ return t[1]; }), color: 'var(--cat-1)', foot: foot + ' ' + fmtPct(cagrV) + (CURRENCY === 'IRR' ? ' (nominal)' : '') },
+      { label: 'Market volume · FY' + YEARS[LATEST], value: fmtUnits(uL), unit: 'units', delta: pct(uL, uP), spark: totals.map(function(t){ return t[0]; }), color: 'var(--cat-2)', foot: foot + ' ' + fmtPct(cagrU) },
+      { label: 'Average price · FY' + YEARS[LATEST], value: fmtPrice(pr[LATEST]), unit: CURRENCY + ' / unit', delta: pct(pr[LATEST], pr[PREV]), spark: pr, color: 'var(--cat-3)', foot: 'Value divided by units, all products' },
+      { label: 'Companies · FY' + YEARS[LATEST], value: nfFull.format(activeC), unit: 'of ' + D.companies.length + ' in the ledger', delta: null, spark: null, foot: nfFull.format(activeP) + ' product lines sold · ' + nfFull.format(products.length) + ' tracked' }
+    ]);
+    $('buildTag').textContent = 'Build 1 · ' + nfFull.format(D.nLines) + ' ledger lines · ' + nfFull.format(D.nExcluded) + ' source rows excluded in cleaning';
+  }
+
+  /* ---------------- Overview ---------------- */
+  function renderOverview(){
+    var panel = $('panel-overview');
+    panel.innerHTML =
+      '<div class="tab-body"><div class="grid-2">' +
+        '<div class="card"><div class="card-head"><span class="card-title">Market value trend</span><span class="card-sub">Sum of sales, all products (' + CURRENCY + ')</span></div><div class="chart-surface" id="ov-val"></div></div>' +
+        '<div class="card"><div class="card-head"><span class="card-title">Market volume trend</span><span class="card-sub">Sum of units sold, all products</span></div><div class="chart-surface" id="ov-units"></div></div>' +
+      '</div><div class="grid-2">' +
+        '<div class="card"><div class="card-head"><span class="card-title">Average price per unit</span><span class="card-sub">' + CURRENCY + ', value divided by units</span></div><div class="chart-surface" id="ov-price"></div></div>' +
+        '<div class="card"><div class="card-head"><span class="card-title">Market concentration</span><span class="card-sub">Share of sales value held by the top companies</span></div><div class="chart-surface" id="ov-conc"></div></div>' +
+      '</div>' +
+      '<div class="card"><div class="card-head"><div><span class="card-title">Top ingredient families, FY' + YEARS[LATEST] + '</span><div class="card-sub" id="ov-fam-sub"></div></div>' + metricToggle('ov-fam-toggle') + '</div><div id="ov-fam"></div></div>' +
+      '<div class="card"><div class="card-head"><div><span class="card-title">Sales by category, FY' + YEARS[LATEST] + '</span><div class="card-sub">Functional grouping as reported · click a row to compare in full</div></div></div><div id="ov-cat"></div></div></div>' +
+      '<aside class="tab-desc"><p>Sales value is nominal Iranian rial (not inflation-adjusted). Rial depreciation accounts for much of the nominal growth shown here, so check the average price chart and try the USD view.</p><p>FY' + YEARS[THIN] + ' is shaded as a thin year: the yearbook lists far fewer companies than the years either side of it.</p><p>CAGR is computed from each item’s own first active year in the trailing five-year window (FY' + YEARS[LATEST - CAGR_WINDOW] + ' to FY' + YEARS[LATEST] + ').</p></aside>';
+    renderTrendChart($('ov-val'), { series: [{ name: 'Value', color: 'var(--cat-1)', values: totals.map(function(t){ return t[1]; }) }], formatter: fmtRial, aria: 'Total market value trend' });
+    renderTrendChart($('ov-units'), { series: [{ name: 'Units', color: 'var(--cat-2)', values: totals.map(function(t){ return t[0]; }) }], formatter: fmtUnits, aria: 'Total market volume trend' });
+    renderTrendChart($('ov-price'), { series: [{ name: 'Price', color: 'var(--cat-3)', values: totals.map(function(t){ return t[0] > 0 ? t[1] / t[0] : 0; }) }], formatter: function(v){ return CURRENCY === 'USD' ? v.toFixed(2) : nfCompact.format(v); }, aria: 'Average price trend' });
+    var comp = compEntries(), conc = [1, 5, 10].map(function(k, si){
+      return { name: 'Top ' + k, color: CAT[si], values: YEARS.map(function(_, y){ var vals = comp.map(function(c){ return c.r[y]; }).sort(function(a, b){ return b - a; }); var s = vals.slice(0, k).reduce(function(a, b){ return a + b; }, 0); return totals[y][1] ? s / totals[y][1] * 100 : 0; }) }; });
+    renderTrendChart($('ov-conc'), { series: conc, formatter: function(v){ return v.toFixed(0) + '%'; }, aria: 'Top company share trend', noThin: false });
+    function drawFam(metric){
+      var items = rankItems(famEntries(), metric, metric === 'r' ? 'var(--cat-1)' : 'var(--cat-2)', function(e){ famDiveApi.select(e.id); }).slice(0, 15);
+      items.forEach(function(it){ it.meta = ''; });
+      renderRankedBars($('ov-fam'), items, rankOpts(metric));
+      $('ov-fam-sub').textContent = 'Ranked by ' + (metric === 'r' ? 'sales value' : 'units sold') + ' · top 15 of ' + D.fams.length + ' · click a row for the deep dive';
+    }
+    drawFam('r'); wireMetric('ov-fam-toggle', drawFam);
+    var cats = rankItems(catEntries(), 'r', null, function(e){ catApi.select(e.id); });
+    cats.forEach(function(it, i){ it.color = CAT[i % CAT.length]; });
+    renderRankedBars($('ov-cat'), cats, rankOpts('r'));
+  }
+
+  /* ---------------- Companies ---------------- */
+  function renderCompanies(){
+    var panel = $('panel-companies');
+    panel.innerHTML =
+      '<div class="tab-body"><div class="grid-2">' +
+        '<div class="card"><div class="card-head"><span class="card-title">Market share, FY' + YEARS[LATEST] + '</span><span class="card-sub" id="co-share-sub"></span></div><div id="co-share"></div></div>' +
+        '<div class="card"><div class="card-head"><span class="card-title">Top companies, ' + N + '-year trend</span><span class="card-sub">Sales value (' + CURRENCY + ')</span></div><div class="chart-surface" id="co-trend"></div></div>' +
+      '</div><div class="grid-2"><div class="card"><div class="card-head"><span class="card-title">Active companies</span><span class="card-sub">Companies with sales in each year</span></div><div class="chart-surface" id="co-count"></div></div><div class="card"><div class="card-head"><span class="card-title">Active product lines</span><span class="card-sub">Lines with sales in each year</span></div><div class="chart-surface" id="co-lines"></div></div></div>' +
+      '<div class="card"><div class="card-head"><span class="card-title">All companies</span><span class="card-sub">' + D.companies.length + ' companies</span></div><div class="toolbar"><input type="search" id="co-search" placeholder="Search company…" aria-label="Search company"></div><div id="co-table"></div></div></div>' +
+      '<aside class="tab-desc"><p>Company names are shown as recorded, in Persian. Spelling variants were merged during cleaning and the 1404 edition’s Latin spellings were matched back to the Persian names.</p></aside>';
+    var comp = compEntries(), totalR = totals[LATEST][1];
+    renderShareBar($('co-share'), shareSegs(comp, function(e){ return e.r[LATEST]; }, totalR, fmtFullRial, 7));
+    $('co-share-sub').textContent = 'Top 7 of ' + comp.filter(function(c){ return c.r[LATEST] > 0; }).length + ' active companies, by sales value';
+    var top6 = comp.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; }).slice(0, 6);
+    renderTrendChart($('co-trend'), { series: top6.map(function(c, i){ return { name: c.label, color: CAT[i], values: c.r }; }), formatter: fmtRial, aria: 'Top company trend' });
+    renderTrendChart($('co-count'), { series: [{ name: 'Companies with sales', color: 'var(--cat-7)', values: YEARS.map(function(_, y){ return comp.filter(function(c){ return c.r[y] > 0 || c.u[y] > 0; }).length; }) }], formatter: function(v){ return String(Math.round(v)); }, aria: 'Active companies per year' });
+    renderTrendChart($('co-lines'), { series: [{ name: 'Product lines', color: 'var(--cat-3)', values: YEARS.map(function(_, y){ return products.filter(function(p){ return p.u[y] > 0 || p.r[y] > 0; }).length; }) }], formatter: function(v){ return String(Math.round(v)); }, aria: 'Active product lines per year' });
+    var cols = [
+      { key: 'name', label: 'Company', defaultDir: 'asc', sortVal: function(r){ return r.label; }, render: function(td, r){ linkBtn(td, r.label, r.label + ' — view company profile', function(){ companyDiveApi.select(r.id); }, 'fa'); } },
+      { key: 'np', label: 'Lines FY' + YEARS[LATEST], align: 'num', sortVal: function(r){ return r.np; }, render: function(td, r){ td.textContent = r.np || '—'; } },
+      { key: 'units', label: 'Units FY' + YEARS[LATEST], align: 'num', sortVal: function(r){ return r.u[LATEST]; }, render: function(td, r){ td.textContent = fmtUnits(r.u[LATEST]); } },
+      { key: 'value', label: 'Value FY' + YEARS[LATEST], align: 'num', defaultSort: true, sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = fmtRial(r.r[LATEST]); } },
+      { key: 'share', label: 'Share', align: 'num', sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = (r.r[LATEST] / totalR * 100).toFixed(2) + '%'; } },
+      { key: 'yoy', label: 'YoY (value)', align: 'num', sortVal: function(r){ var p = pct(r.r[LATEST], r.r[PREV]); return p == null ? -Infinity : p; }, render: function(td, r){ paintGrowth(td, yoyCell(r.r[LATEST], r.r[PREV])); } },
+      { key: 'cagr', label: 'CAGR (value)', align: 'num', sortVal: function(r){ var g = growthSeries(r.r, LATEST); return g.isNew ? Infinity : (g.pct == null ? -Infinity : g.pct); }, render: function(td, r){ paintGrowth(td, growthCell(r.r)); } },
+      { key: 'trend', label: N + '-yr trend', sortable: false, render: function(td, r){ sparkCell(td, r.r); } }
+    ];
+    var t = makeTable({ mountId: 'co-table', getRows: function(){ return comp; }, columns: cols, pageSize: 20, searchFn: function(r, q){ return r.label.toLowerCase().indexOf(q) > -1; } });
+    t.render(); $('co-search').addEventListener('input', function(e){ t.setQuery(e.target.value.trim().toLowerCase()); });
+  }
+
+  /* ---------------- Product explorer ---------------- */
+  var explorerState = { year: LATEST, cat: '', fam: '', form: '' };
+  function renderExplorer(){
+    var panel = $('panel-explorer');
+    function opts(list, sel){ return list.map(function(n, i){ return '<option value="' + i + '"' + (sel === i ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join(''); }
+    panel.innerHTML =
+      '<div class="tab-body"><div class="card"><div class="card-head"><span class="card-title">Every product line, one row each</span><span class="card-sub">' + products.length.toLocaleString() + ' lines (brand × company × dosage form)</span></div>' +
+      '<div class="toolbar"><input type="search" id="ex-search" placeholder="Search product or company…" aria-label="Search products">' +
+      '<select id="ex-cat" aria-label="Category"><option value="">All categories</option>' + opts(D.cats) + '</select>' +
+      '<select id="ex-fam" aria-label="Ingredient family"><option value="">All ingredient families</option>' + opts(D.fams) + '</select>' +
+      '<select id="ex-form" aria-label="Dosage form"><option value="">All dosage forms</option>' + opts(D.forms) + '</select>' +
+      '<select id="ex-year" aria-label="Year">' + YEARS.map(function(y, i){ return '<option value="' + i + '"' + (i === explorerState.year ? ' selected' : '') + '>FY' + y + '</option>'; }).join('') + '</select></div><div id="ex-table"></div></div></div>' +
+      '<aside class="tab-desc"><p>Lines are matched across years by company, brand (or product name) and dosage form. A renamed product shows as a new line and its older line stops. CAGR runs from each line’s own first active year in the trailing five-year window.</p><p>Price per unit is value divided by units for the selected year.</p></aside>';
+    $('ex-cat').value = explorerState.cat; $('ex-fam').value = explorerState.fam; $('ex-form').value = explorerState.form;
+    var cols;
+    function build(){
+      var y = explorerState.year;
+      cols = [
+        { key: 'product', label: 'Product line', defaultDir: 'asc', sortVal: function(r){ return r.l; }, render: function(td, r){ var s = document.createElement('span'); s.className = 'ellip'; s.title = r.l; s.textContent = r.l; td.appendChild(s); if (r.fa){ var f = document.createElement('span'); f.className = 'sub2 fa ellip'; f.textContent = r.fa; td.appendChild(f); } } },
+        { key: 'company', label: 'Company', defaultDir: 'asc', sortVal: function(r){ return D.companies[r.c]; }, render: function(td, r){ linkBtn(td, D.companies[r.c], D.companies[r.c] + ' — view company profile', function(){ companyDiveApi.select(r.c); }, 'fa'); } },
+        { key: 'family', label: 'Ingredient family', defaultDir: 'asc', sortVal: function(r){ return D.fams[r.g]; }, render: function(td, r){ linkBtn(td, D.fams[r.g], D.fams[r.g] + ' — ingredient deep dive', function(){ famDiveApi.select(r.g); }); } },
+        { key: 'form', label: 'Form', defaultDir: 'asc', sortVal: function(r){ return D.forms[r.f]; }, render: function(td, r){ td.textContent = D.forms[r.f]; } },
+        { key: 'units', label: 'Units FY' + YEARS[y], align: 'num', sortVal: function(r){ return r.u[y]; }, render: function(td, r){ td.textContent = r.u[y] > 0 ? fmtUnits(r.u[y]) : '—'; } },
+        { key: 'value', label: 'Value FY' + YEARS[y], align: 'num', defaultSort: true, sortVal: function(r){ return r.r[y]; }, render: function(td, r){ td.textContent = r.r[y] > 0 ? fmtRial(r.r[y]) : '—'; } },
+        { key: 'price', label: 'Price / unit', align: 'num', sortVal: function(r){ var p = price(r.r[y], r.u[y]); return p == null ? -1 : p; }, render: function(td, r){ td.textContent = fmtPrice(price(r.r[y], r.u[y])); } },
+        { key: 'yoy', label: 'YoY (value)', align: 'num', sortVal: function(r){ var p = y > 0 ? pct(r.r[y], r.r[y - 1]) : null; return p == null ? -Infinity : p; }, render: function(td, r){ if (y === 0){ td.textContent = '—'; return; } var c = yoyCell(r.r[y], r.r[y - 1]); td.textContent = c.text; td.title = 'vs FY' + YEARS[y - 1]; td.classList.add(c.cls); } },
+        { key: 'cagr', label: 'CAGR (value)', align: 'num', sortVal: function(r){ var g = growthSeries(r.r, y); return g.isNew ? Infinity : (g.pct == null ? -Infinity : g.pct); }, render: function(td, r){ var g = growthSeries(r.r, y), c = g.isNew ? { text: 'New', cls: 'up', title: 'First appears in FY' + YEARS[y] } : (g.pct == null ? { text: '—', cls: 'flat', title: '' } : { text: fmtPct(g.pct), cls: g.pct >= 0 ? 'up' : 'down', title: 'CAGR since FY' + YEARS[g.first] }); td.textContent = c.text; td.title = c.title; td.classList.add(c.cls); } },
+        { key: 'trend', label: N + '-yr trend', sortable: false, render: function(td, r){ sparkCell(td, r.r); } }
+      ];
+    }
+    build();
+    var table = makeTable({ mountId: 'ex-table', pageSize: 25,
+      getRows: function(){ return products.filter(function(p){
+        var y = explorerState.year;
+        if (!(p.u[y] > 0 || p.r[y] > 0)) return false;
+        if (explorerState.cat !== '' && p.k !== +explorerState.cat) return false;
+        if (explorerState.fam !== '' && p.g !== +explorerState.fam) return false;
+        if (explorerState.form !== '' && p.f !== +explorerState.form) return false;
+        return true; }); },
+      get columns(){ return cols; },
+      searchFn: function(r, q){ return r.l.toLowerCase().indexOf(q) > -1 || (r.fa || '').toLowerCase().indexOf(q) > -1 || D.companies[r.c].toLowerCase().indexOf(q) > -1; } });
+    table.render();
+    $('ex-search').addEventListener('input', function(e){ table.setQuery(e.target.value.trim().toLowerCase()); });
+    ['cat', 'fam', 'form'].forEach(function(k){ $('ex-' + k).addEventListener('change', function(e){ explorerState[k] = e.target.value; table.reset(); }); });
+    $('ex-year').addEventListener('change', function(e){ explorerState.year = +e.target.value; build(); table.reset(); });
+  }
+
+  /* ---------------- shared detail card ---------------- */
+  function detailBlock(prefix, ent, productsList, o){
+    // ent: {u, r}; productsList: products in scope; o: {title, sub, shareOfFamily}
+    var items = productsList;
+    return '<div class="card"><div class="card-head"><div><span class="card-title fa">' + esc(o.title) + '</span><div class="card-sub">' + esc(o.sub) + '</div></div></div><div class="kpi-row" style="margin-bottom:0" id="' + prefix + '-kpis"></div></div>' +
+      '<div class="grid-2"><div class="card"><div class="card-head"><span class="card-title">Value trend</span><span class="card-sub">Sales value (' + CURRENCY + ')</span></div><div class="chart-surface" id="' + prefix + '-tv"></div></div>' +
+      '<div class="card"><div class="card-head"><span class="card-title">Volume trend</span><span class="card-sub">Units sold</span></div><div class="chart-surface" id="' + prefix + '-tu"></div></div></div>' +
+      '<div class="card"><div class="card-head"><div><span class="card-title">' + o.listTitle + ', FY' + YEARS[LATEST] + '</span><div class="card-sub" id="' + prefix + '-sub"></div></div>' + metricToggle(prefix + '-toggle') + '</div><div id="' + prefix + '-bars"></div></div>' +
+      (o.extra || '') +
+      '<div class="card"><div class="card-head"><span class="card-title">All product lines</span><span class="card-sub">' + items.length + ' lines</span></div><div id="' + prefix + '-table"></div></div>';
+  }
+  function fillDetail(prefix, ent, list, o){
+    var gV = growthSeries(ent.r, LATEST), gU = growthSeries(ent.u, LATEST);
+    var foot = function(g){ return g.isNew ? 'New this period' : (g.pct == null ? null : (g.years + 1) + '-yr CAGR ' + fmtPct(g.pct)); };
+    var pr = priceSeries(ent);
+    var activeP = list.filter(function(p){ return p.u[LATEST] > 0 || p.r[LATEST] > 0; }).length;
+    kpiCards($(prefix + '-kpis'), [
+      { label: 'Value FY' + YEARS[LATEST], value: fmtRial(ent.r[LATEST]), unit: CURRENCY, delta: pct(ent.r[LATEST], ent.r[PREV]), foot: foot(gV) },
+      { label: 'Volume FY' + YEARS[LATEST], value: fmtUnits(ent.u[LATEST]), unit: 'units', delta: pct(ent.u[LATEST], ent.u[PREV]), foot: foot(gU) },
+      { label: 'Average price', value: fmtPrice(pr[LATEST] || null) || '—', unit: CURRENCY + ' / unit', delta: pr[PREV] > 0 ? pct(pr[LATEST], pr[PREV]) : null, foot: null },
+      { label: o.countLabel, value: nfFull.format(o.countValue), unit: o.countUnit, foot: nfFull.format(activeP) + ' of ' + list.length + ' lines active in FY' + YEARS[LATEST] }
+    ], true);
+    renderTrendChart($(prefix + '-tv'), { series: [{ name: 'Value', color: 'var(--cat-1)', values: ent.r }], formatter: fmtRial, aria: o.title + ' value trend' });
+    renderTrendChart($(prefix + '-tu'), { series: [{ name: 'Units', color: 'var(--cat-2)', values: ent.u }], formatter: fmtUnits, aria: o.title + ' volume trend' });
+    function draw(metric){
+      var entries = list.map(function(p){ return { label: p.l, meta: o.metaFn ? o.metaFn(p) : '', u: p.u, r: p.r }; });
+      var items = rankItems(entries, metric, metric === 'r' ? 'var(--cat-1)' : 'var(--cat-2)').slice(0, 20);
+      renderRankedBars($(prefix + '-bars'), items, rankOpts(metric));
+      var n = list.filter(function(p){ return (metric === 'r' ? p.r[LATEST] : p.u[LATEST]) > 0; }).length;
+      $(prefix + '-sub').textContent = 'Ranked by ' + (metric === 'r' ? 'sales value' : 'units sold') + (n > 20 ? ' · top 20 of ' + n : '') + ' · CAGR shown for the ranked metric';
+    }
+    draw('r'); wireMetric(prefix + '-toggle', draw);
+    var y = LATEST;
+    var cols = [
+      { key: 'product', label: 'Product line', defaultDir: 'asc', sortVal: function(r){ return r.l; }, render: function(td, r){ var s = document.createElement('span'); s.className = 'ellip'; s.title = r.l; s.textContent = r.l; td.appendChild(s); if (r.fa){ var f = document.createElement('span'); f.className = 'sub2 fa ellip'; f.textContent = r.fa; td.appendChild(f); } } },
+      { key: 'other', label: o.otherLabel, defaultDir: 'asc', sortVal: function(r){ return o.otherFn(r); }, render: function(td, r){ if (o.otherLink) linkBtn(td, o.otherFn(r), o.otherFn(r), function(){ o.otherLink(r); }, 'fa'); else td.textContent = o.otherFn(r); } },
+      { key: 'form', label: 'Form', defaultDir: 'asc', sortVal: function(r){ return D.forms[r.f]; }, render: function(td, r){ td.textContent = D.forms[r.f]; } },
+      { key: 'units', label: 'Units FY' + YEARS[y], align: 'num', sortVal: function(r){ return r.u[y]; }, render: function(td, r){ td.textContent = fmtUnits(r.u[y]); } },
+      { key: 'value', label: 'Value FY' + YEARS[y], align: 'num', defaultSort: true, sortVal: function(r){ return r.r[y]; }, render: function(td, r){ td.textContent = fmtRial(r.r[y]); } },
+      { key: 'yoy', label: 'YoY (value)', align: 'num', sortVal: function(r){ var p = pct(r.r[y], r.r[y - 1]); return p == null ? -Infinity : p; }, render: function(td, r){ paintGrowth(td, yoyCell(r.r[y], r.r[y - 1])); } },
+      { key: 'cagr', label: 'CAGR (value)', align: 'num', sortVal: function(r){ var g = growthSeries(r.r, y); return g.isNew ? Infinity : (g.pct == null ? -Infinity : g.pct); }, render: function(td, r){ paintGrowth(td, growthCell(r.r)); } },
+      { key: 'trend', label: N + '-yr trend', sortable: false, render: function(td, r){ sparkCell(td, r.r); } }
+    ];
+    var t = makeTable({ mountId: prefix + '-table', getRows: function(){ return list; }, columns: cols, pageSize: 15, searchFn: function(r, q){ return r.l.toLowerCase().indexOf(q) > -1; } });
+    t.render();
+  }
+
+  /* ---------------- Ingredient deep dive ---------------- */
+  var famDiveApi = {}, companyDiveApi = {}, catApi = {};
+  var lastFam = null, lastComp = null, lastCat = null;
+  function renderFamilyDive(){
+    var panel = $('panel-familydive');
+    panel.innerHTML =
+      '<div class="tab-body"><div class="card"><div class="card-head"><span class="card-title">Find an ingredient family</span><span class="card-sub">' + D.fams.length + ' families</span></div>' +
+      '<div class="combo"><input type="text" id="fd-search" placeholder="Type a family… e.g. whey, vitamin C, iron" autocomplete="off" aria-label="Ingredient family"><div class="combo-results" id="fd-results"></div></div><div class="quickchips" id="fd-quick"></div></div><div id="fd-detail"></div></div>' +
+      '<aside class="tab-desc"><p>An ingredient family is a keyword grouping built from each product’s ingredient group, names and brand, in Persian and Latin. Lines that match no rule sit in “Other and mixed formulas”. A multi-ingredient product is placed in its first matching family only.</p></aside>';
+    var fe = famEntries();
+    fe.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; }).slice(0, 6).forEach(function(f){
+      var b = document.createElement('button'); b.className = 'chip-btn'; b.textContent = f.label; b.addEventListener('click', function(){ select(f.id); }); $('fd-quick').appendChild(b);
+    });
+    combo('fd-search', 'fd-results', function(q){ return fe.filter(function(f){ return f.label.toLowerCase().indexOf(q) > -1; }).map(function(f){ return { id: f.id, name: f.label, meta: fmtRial(f.r[LATEST]) + ' ' + CURRENCY + ' in FY' + YEARS[LATEST] }; }); }, function(id){ select(id); });
+    function select(gi){
+      lastFam = gi; $('fd-search').value = D.fams[gi];
+      var list = products.filter(function(p){ return p.g === gi; }), ent = famAgg[gi];
+      var comps = {}; list.forEach(function(p){ if (p.r[LATEST] > 0 || p.u[LATEST] > 0) comps[p.c] = 1; });
+      $('fd-detail').innerHTML = detailBlock('fd', ent, list, { title: D.fams[gi], sub: list.length + ' product lines · ' + Object.keys(comps).length + ' companies active in FY' + YEARS[LATEST], listTitle: 'Top product lines',
+        extra: '<div class="card"><div class="card-head"><span class="card-title">Company share, FY' + YEARS[LATEST] + '</span><span class="card-sub">Share of this family’s sales value</span></div><div id="fd-share"></div></div>' });
+      fillDetail('fd', ent, list, { title: D.fams[gi], countLabel: 'Companies', countValue: Object.keys(comps).length, countUnit: 'active', otherLabel: 'Company', otherFn: function(p){ return D.companies[p.c]; }, otherLink: function(p){ companyDiveApi.select(p.c); }, metaFn: function(p){ return D.companies[p.c]; } });
+      var byC = {}; list.forEach(function(p){ byC[p.c] = (byC[p.c] || 0) + p.r[LATEST]; });
+      var segs = shareSegs(Object.keys(byC).map(function(c){ return { label: D.companies[c], v: byC[c] }; }), function(e){ return e.v; }, ent.r[LATEST] || 1, fmtFullRial, 7);
+      renderShareBar($('fd-share'), segs);
+    }
+    famDiveApi.select = function(gi){ activateTab('familydive'); select(gi); window.scrollTo({ top: $('panel-familydive').offsetTop - 20, behavior: 'smooth' }); };
+    var start = lastFam != null ? lastFam : fe.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; })[0].id;
+    select(start);
+  }
+
+  /* ---------------- Company deep dive ---------------- */
+  function renderCompanyDive(){
+    var panel = $('panel-companydive');
+    panel.innerHTML =
+      '<div class="tab-body"><div class="card"><div class="card-head"><span class="card-title">Find a company</span><span class="card-sub">' + D.companies.length + ' companies</span></div>' +
+      '<div class="combo"><input type="text" id="cd-search" placeholder="Type a company name…" autocomplete="off" class="fa" aria-label="Company"><div class="combo-results" id="cd-results"></div></div><div class="quickchips" id="cd-quick"></div></div><div id="cd-detail"></div></div>' +
+      '<aside class="tab-desc"><p>For each product line, the share shown is the line’s portion of its ingredient family’s total sales in FY' + YEARS[LATEST] + '.</p></aside>';
+    var ce = compEntries();
+    ce.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; }).slice(0, 6).forEach(function(c){
+      var b = document.createElement('button'); b.className = 'chip-btn fa'; b.textContent = c.label; b.addEventListener('click', function(){ select(c.id); }); $('cd-quick').appendChild(b);
+    });
+    combo('cd-search', 'cd-results', function(q){ return ce.filter(function(c){ return c.label.toLowerCase().indexOf(q) > -1; }).map(function(c){ return { id: c.id, name: c.label, meta: fmtRial(c.r[LATEST]) + ' ' + CURRENCY + ' in FY' + YEARS[LATEST] }; }); }, function(id){ select(id); });
+    function select(ci){
+      lastComp = ci; $('cd-search').value = D.companies[ci];
+      var list = products.filter(function(p){ return p.c === ci; }), ent = compAgg[ci];
+      var fams = {}; list.forEach(function(p){ if (p.r[LATEST] > 0 || p.u[LATEST] > 0) fams[p.g] = 1; });
+      var mix = {}; list.forEach(function(p){ mix[p.g] = (mix[p.g] || 0) + p.r[LATEST]; });
+      $('cd-detail').innerHTML = detailBlock('cd', ent, list, { title: D.companies[ci], sub: list.length + ' product lines · market share FY' + YEARS[LATEST] + ': ' + (totals[LATEST][1] ? (ent.r[LATEST] / totals[LATEST][1] * 100).toFixed(2) : '0') + '%', listTitle: 'Top product lines',
+        extra: '<div class="card"><div class="card-head"><span class="card-title">Portfolio mix, FY' + YEARS[LATEST] + '</span><span class="card-sub">Share of this company’s sales by ingredient family</span></div><div id="cd-mix"></div></div>' });
+      fillDetail('cd', ent, list, { title: D.companies[ci], countLabel: 'Ingredient families', countValue: Object.keys(fams).length, countUnit: 'active', otherLabel: 'Ingredient family', otherFn: function(p){ return D.fams[p.g]; }, otherLink: function(p){ famDiveApi.select(p.g); },
+        metaFn: function(p){ var fv = famAgg[p.g].r[LATEST]; return fv > 0 && p.r[LATEST] > 0 ? (p.r[LATEST] / fv * 100).toFixed(1) + '% of ' + D.fams[p.g] : ''; } });
+      renderShareBar($('cd-mix'), shareSegs(Object.keys(mix).map(function(g){ return { label: D.fams[g], v: mix[g] }; }), function(e){ return e.v; }, ent.r[LATEST] || 1, fmtFullRial, 7));
+    }
+    companyDiveApi.select = function(ci){ activateTab('companydive'); select(ci); window.scrollTo({ top: $('panel-companydive').offsetTop - 20, behavior: 'smooth' }); };
+    var start = lastComp != null ? lastComp : ce.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; })[0].id;
+    select(start);
+  }
+
+  /* ---------------- Categories ---------------- */
+  function renderCategories(){
+    var panel = $('panel-categories');
+    panel.innerHTML =
+      '<div class="tab-body"><div class="card"><div class="card-head"><div><span class="card-title">Categories, FY' + YEARS[LATEST] + '</span><div class="card-sub">Standard grouping of the functional group each company reported · click a row to open it</div></div></div><div id="ca-list"></div></div><div id="ca-detail"></div></div>' +
+      '<aside class="tab-desc"><p>Older yearbooks describe products as “supplement for X” and newer ones by benefit. Both wordings were mapped to the same standard categories by keyword. The original wording stays in the ledger lines.</p></aside>';
+    var items = rankItems(catEntries(), 'r', null, function(e){ select(e.id); });
+    items.forEach(function(it, i){ it.color = CAT[i % CAT.length]; });
+    renderRankedBars($('ca-list'), items, rankOpts('r'));
+    function select(ki){
+      lastCat = ki;
+      var ent = catAgg[ki], list = products.filter(function(p){ return p.k === ki; });
+      var famMap = {}, compMap = {}, formMap = {};
+      list.forEach(function(p){ famMap[p.g] = (famMap[p.g] || 0) + p.r[LATEST]; compMap[p.c] = (compMap[p.c] || 0) + p.r[LATEST]; formMap[p.f] = (formMap[p.f] || 0) + p.r[LATEST]; });
+      var tot = ent.r[LATEST] || 1;
+      $('ca-detail').innerHTML = '<div class="card"><div class="card-head"><div><span class="card-title">' + esc(D.cats[ki]) + '</span><div class="card-sub">' + list.length + ' product lines</div></div></div><div class="kpi-row" style="margin-bottom:0" id="ca-kpis"></div></div>' +
+        '<div class="grid-2"><div class="card"><div class="card-head"><span class="card-title">Value trend</span></div><div class="chart-surface" id="ca-tv"></div></div><div class="card"><div class="card-head"><span class="card-title">Volume trend</span></div><div class="chart-surface" id="ca-tu"></div></div></div>' +
+        '<div class="card"><div class="card-head"><span class="card-title">Top ingredient families</span><span class="card-sub">Share of this category, FY' + YEARS[LATEST] + '</span></div><div id="ca-fam"></div></div>' +
+        '<div class="grid-2"><div class="card"><div class="card-head"><span class="card-title">Top companies</span></div><div id="ca-co"></div></div><div class="card"><div class="card-head"><span class="card-title">Dosage forms</span></div><div id="ca-form"></div></div></div>';
+      var gV = growthSeries(ent.r, LATEST), pr = priceSeries(ent);
+      kpiCards($('ca-kpis'), [
+        { label: 'Value FY' + YEARS[LATEST], value: fmtRial(ent.r[LATEST]), unit: CURRENCY, delta: pct(ent.r[LATEST], ent.r[PREV]), foot: gV.pct == null ? null : (gV.years + 1) + '-yr CAGR ' + fmtPct(gV.pct) },
+        { label: 'Volume FY' + YEARS[LATEST], value: fmtUnits(ent.u[LATEST]), unit: 'units', delta: pct(ent.u[LATEST], ent.u[PREV]) },
+        { label: 'Share of market', value: (totals[LATEST][1] ? ent.r[LATEST] / totals[LATEST][1] * 100 : 0).toFixed(1) + '%', unit: 'of sales value' },
+        { label: 'Average price', value: fmtPrice(pr[LATEST] || null) || '—', unit: CURRENCY + ' / unit', delta: pr[PREV] > 0 ? pct(pr[LATEST], pr[PREV]) : null }
+      ], true);
+      renderTrendChart($('ca-tv'), { series: [{ name: 'Value', color: 'var(--cat-1)', values: ent.r }], formatter: fmtRial, aria: 'Category value trend' });
+      renderTrendChart($('ca-tu'), { series: [{ name: 'Units', color: 'var(--cat-2)', values: ent.u }], formatter: fmtUnits, aria: 'Category volume trend' });
+      function bars(host, map, label, click){
+        var arr = Object.keys(map).map(function(k){ return { id: +k, label: label(+k), v: map[k] }; }).filter(function(e){ return e.v > 0; }).sort(function(a, b){ return b.v - a.v; }).slice(0, 8);
+        var mx = arr.length ? arr[0].v : 1;
+        $(host).innerHTML = '<div class="bar-list">' + arr.map(function(e){ return '<div class="bar-row click" data-id="' + e.id + '" tabindex="0" style="grid-template-columns:minmax(0,1.5fr) minmax(0,2fr) auto"><div class="bar-label fa" title="' + esc(e.label) + '">' + esc(e.label) + '</div><div class="bar-track"><div class="bar-fill" style="width:' + Math.max(2, e.v / mx * 100).toFixed(1) + '%;background:var(--cat-1)"></div></div><div class="bar-value mono">' + (e.v / tot * 100).toFixed(1) + '%</div></div>'; }).join('') + '</div>';
+        if (click) $(host).querySelectorAll('.bar-row').forEach(function(r){ r.addEventListener('click', function(){ click(+r.dataset.id); }); });
+      }
+      bars('ca-fam', famMap, function(g){ return D.fams[g]; }, function(g){ famDiveApi.select(g); });
+      bars('ca-co', compMap, function(c){ return D.companies[c]; }, function(c){ companyDiveApi.select(c); });
+      bars('ca-form', formMap, function(f){ return D.forms[f]; }, null);
+    }
+    catApi.select = function(ki){ activateTab('categories'); select(ki); window.scrollTo({ top: $('ca-detail').offsetTop - 20, behavior: 'smooth' }); };
+    var topCat = catEntries().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; })[0].id;
+    select(lastCat != null ? lastCat : topCat);
+  }
+
+  /* ---------------- Dosage forms ---------------- */
+  function renderForms(){
+    var panel = $('panel-forms');
+    panel.innerHTML =
+      '<div class="tab-body"><div class="card"><div class="card-head"><span class="card-title">Share of sales value, FY' + YEARS[LATEST] + '</span></div><div id="fm-share-v"></div></div>' +
+      '<div class="card"><div class="card-head"><span class="card-title">Share of units, FY' + YEARS[LATEST] + '</span></div><div id="fm-share-u"></div></div>' +
+      '<div class="card"><div class="card-head"><span class="card-title">Top dosage forms, ' + N + '-year trend</span><span class="card-sub">Sales value (' + CURRENCY + ')</span></div><div class="chart-surface" id="fm-trend"></div></div>' +
+      '<div class="card"><div class="card-head"><span class="card-title">All dosage forms</span></div><div id="fm-table"></div></div></div>' +
+      '<aside class="tab-desc"><p>About 100 spellings (Persian and English) were grouped into a standard list. A line with no dosage form reported shows as “Not stated”.</p></aside>';
+    var fe = formEntries();
+    renderShareBar($('fm-share-v'), shareSegs(fe, function(e){ return e.r[LATEST]; }, totals[LATEST][1] || 1, fmtFullRial, 7));
+    renderShareBar($('fm-share-u'), shareSegs(fe, function(e){ return e.u[LATEST]; }, totals[LATEST][0] || 1, fmtFullUnits, 7));
+    var top6 = fe.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; }).slice(0, 6);
+    renderTrendChart($('fm-trend'), { series: top6.map(function(f, i){ return { name: f.label, color: CAT[i], values: f.r }; }), formatter: fmtRial, aria: 'Dosage form value trend' });
+    var cols = [
+      { key: 'name', label: 'Dosage form', defaultDir: 'asc', sortVal: function(r){ return r.label; }, render: function(td, r){ td.textContent = r.label; } },
+      { key: 'np', label: 'Lines FY' + YEARS[LATEST], align: 'num', sortVal: function(r){ return r.np; }, render: function(td, r){ td.textContent = r.np || '—'; } },
+      { key: 'units', label: 'Units FY' + YEARS[LATEST], align: 'num', sortVal: function(r){ return r.u[LATEST]; }, render: function(td, r){ td.textContent = fmtUnits(r.u[LATEST]); } },
+      { key: 'value', label: 'Value FY' + YEARS[LATEST], align: 'num', defaultSort: true, sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = fmtRial(r.r[LATEST]); } },
+      { key: 'share', label: 'Share', align: 'num', sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = (totals[LATEST][1] ? r.r[LATEST] / totals[LATEST][1] * 100 : 0).toFixed(1) + '%'; } },
+      { key: 'price', label: 'Price / unit', align: 'num', sortVal: function(r){ var p = price(r.r[LATEST], r.u[LATEST]); return p == null ? -1 : p; }, render: function(td, r){ td.textContent = fmtPrice(price(r.r[LATEST], r.u[LATEST])); } },
+      { key: 'yoy', label: 'YoY (value)', align: 'num', sortVal: function(r){ var p = pct(r.r[LATEST], r.r[PREV]); return p == null ? -Infinity : p; }, render: function(td, r){ paintGrowth(td, yoyCell(r.r[LATEST], r.r[PREV])); } },
+      { key: 'cagr', label: 'CAGR (value)', align: 'num', sortVal: function(r){ var g = growthSeries(r.r, LATEST); return g.isNew ? Infinity : (g.pct == null ? -Infinity : g.pct); }, render: function(td, r){ paintGrowth(td, growthCell(r.r)); } },
+      { key: 'trend', label: N + '-yr trend', sortable: false, render: function(td, r){ sparkCell(td, r.r); } }
+    ];
+    makeTable({ mountId: 'fm-table', getRows: function(){ return fe; }, columns: cols, pageSize: 25, searchFn: function(r, q){ return r.label.toLowerCase().indexOf(q) > -1; } }).render();
+  }
+
+  /* ---------------- Ledger lines ---------------- */
+  var ledgerState = { year: '', cat: '', form: '', hideZero: true };
+  function renderLedger(){
+    var panel = $('panel-ledger');
+    function opts(list){ return list.map(function(n, i){ return '<option value="' + i + '">' + esc(n) + '</option>'; }).join(''); }
+    panel.innerHTML =
+      '<div class="tab-body"><div class="card"><div class="card-head"><span class="card-title">Every ledger line</span><span class="card-sub">' + lines.length.toLocaleString() + ' lines · company × product × year</span></div>' +
+      '<div class="toolbar"><input type="search" id="lg-search" placeholder="Search product, strength or company…" aria-label="Search lines">' +
+      '<select id="lg-year" aria-label="Year"><option value="">All years</option>' + YEARS.map(function(y, i){ return '<option value="' + i + '">FY' + y + '</option>'; }).join('') + '</select>' +
+      '<select id="lg-cat" aria-label="Category"><option value="">All categories</option>' + opts(D.cats) + '</select>' +
+      '<select id="lg-form" aria-label="Dosage form"><option value="">All dosage forms</option>' + opts(D.forms) + '</select>' +
+      '<select id="lg-zero" aria-label="Zero sales"><option value="1">Hide zero sales</option><option value="0">Show zero sales</option></select></div>' +
+      '<div id="lg-count" class="card-sub" style="margin-bottom:8px"></div><div id="lg-table"></div></div></div>' +
+      '<aside class="tab-desc"><p>These are the cleaned source lines behind every chart. A flag marks lines with missing or zero values, negative sales (returns), possible duplicates or a very low price per unit. Strength, flavor and pack size are only reported from FY1403.</p><p>Lines with the same product line, year and company are added together in the other tabs.</p></aside>';
+    $('lg-year').value = ledgerState.year; $('lg-cat').value = ledgerState.cat; $('lg-form').value = ledgerState.form; $('lg-zero').value = ledgerState.hideZero ? '1' : '0';
+    var cols = [
+      { key: 'year', label: 'Year', defaultDir: 'desc', sortVal: function(r){ return r[0]; }, render: function(td, r){ td.textContent = 'FY' + YEARS[r[0]]; } },
+      { key: 'company', label: 'Company', defaultDir: 'asc', sortVal: function(r){ return D.companies[products[r[1]].c]; }, render: function(td, r){ var c = products[r[1]].c; linkBtn(td, D.companies[c], D.companies[c], function(){ companyDiveApi.select(c); }, 'fa'); } },
+      { key: 'product', label: 'Product', defaultDir: 'asc', sortVal: function(r){ return products[r[1]].l; }, render: function(td, r){ var p = products[r[1]]; var s = document.createElement('span'); s.className = 'ellip'; s.title = p.l; s.textContent = p.l; td.appendChild(s); var det = [r[2], r[3], r[4]].filter(Boolean).join(' · '); if (det || p.fa){ var f = document.createElement('span'); f.className = 'sub2 fa ellip'; f.textContent = det || p.fa; td.appendChild(f); } } },
+      { key: 'form', label: 'Form', defaultDir: 'asc', sortVal: function(r){ return D.forms[products[r[1]].f]; }, render: function(td, r){ td.textContent = D.forms[products[r[1]].f]; } },
+      { key: 'units', label: 'Units', align: 'num', sortVal: function(r){ return r[5] == null ? -Infinity : r[5]; }, render: function(td, r){ td.textContent = r[5] == null ? '—' : nfFull.format(r[5]); } },
+      { key: 'value', label: 'Value (' + CURRENCY + ')', align: 'num', defaultSort: true, sortVal: function(r){ return r[6] == null ? -Infinity : conv(r[6], r[0]); }, render: function(td, r){ td.textContent = r[6] == null ? '—' : (CURRENCY === 'USD' ? nfFull.format(Math.round(conv(r[6], r[0]))) : nfFull.format(r[6])); } },
+      { key: 'price', label: 'Price / unit', align: 'num', sortVal: function(r){ return r[5] > 0 && r[6] > 0 ? conv(r[6], r[0]) / r[5] : -1; }, render: function(td, r){ td.textContent = r[5] > 0 && r[6] > 0 ? fmtPrice(conv(r[6], r[0]) / r[5]) : ''; } },
+      { key: 'flag', label: 'Flag', defaultDir: 'desc', sortVal: function(r){ return r[7]; }, render: function(td, r){ if (r[7]){ var c = document.createElement('span'); c.className = 'chip flag'; c.textContent = r[6] == null || r[5] == null ? 'Missing' : (r[5] === 0 && r[6] === 0 ? 'Zero' : 'Check'); td.appendChild(c); } } }
+    ];
+    var table = makeTable({ mountId: 'lg-table', pageSize: 25, columns: cols,
+      getRows: function(){
+        var s = ledgerState;
+        var out = lines.filter(function(r){
+          if (s.year !== '' && r[0] !== +s.year) return false;
+          var p = products[r[1]];
+          if (s.cat !== '' && p.k !== +s.cat) return false;
+          if (s.form !== '' && p.f !== +s.form) return false;
+          if (s.hideZero && !(r[5] > 0 || r[6] > 0)) return false;
+          return true;
+        });
+        $('lg-count').textContent = out.length.toLocaleString() + ' lines match the filters';
+        return out;
+      },
+      searchFn: function(r, q){ var p = products[r[1]]; return p.l.toLowerCase().indexOf(q) > -1 || (p.fa || '').toLowerCase().indexOf(q) > -1 || D.companies[p.c].toLowerCase().indexOf(q) > -1 || (r[2] || '').toLowerCase().indexOf(q) > -1; } });
+    table.render();
+    $('lg-search').addEventListener('input', function(e){ table.setQuery(e.target.value.trim().toLowerCase()); });
+    [['lg-year', 'year'], ['lg-cat', 'cat'], ['lg-form', 'form']].forEach(function(x){ $(x[0]).addEventListener('change', function(e){ ledgerState[x[1]] = e.target.value; table.reset(); }); });
+    $('lg-zero').addEventListener('change', function(e){ ledgerState.hideZero = e.target.value === '1'; table.reset(); });
+  }
+
+  /* ---------------- tabs & init ---------------- */
+  function activateTab(name){
+    var btn = document.querySelector('.tab-btn[data-tab="' + name + '"]'); if (!btn) return;
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b === btn); b.setAttribute('aria-selected', b === btn ? 'true' : 'false'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.toggle('active', p.id === 'panel-' + name); });
+    hideTooltip();
+  }
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.addEventListener('click', function(){ activateTab(b.dataset.tab); }); });
+
+  renderCurrencyBar(); renderKPIs(); renderOverview(); renderCompanies(); renderExplorer(); renderFamilyDive(); renderCompanyDive(); renderCategories(); renderForms(); renderLedger();
+  var h = (location.hash || '').replace('#', ''); if (/^[a-z]+$/.test(h)) activateTab(h);
+})();
+</script>

@@ -11,8 +11,9 @@ from the supplement producers syndicate yearbooks for Jalali years 1390 to 1404.
   - `By company`, `By category`, `By dosage form`: sales value by year, built with live formulas over the Ledger.
   - `Cleaning log`, `Company merges`, `Excluded rows`: everything that was changed or left out.
 - `supplements_sales_ledger_clean.csv` is the same ledger as plain text for other tools.
+- `supplements_ledger_1.html` is the interactive dashboard (overview, companies, product explorer, ingredient and company deep dives, categories, dosage forms, ledger lines, IRR/USD view). It is one self-contained page. Rebuild it with `python -m supplements_ledger.build_dashboard`.
 - `parse_raw.py` reads the raw yearbook tables, `clean.py` holds the cleaning rules,
-  `build_ledger.py` writes the workbook.
+  `families.py` assigns ingredient families, `build_ledger.py` writes the workbook and `build_dashboard.py` writes the dashboard.
 
 ## Rebuild
 

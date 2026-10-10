@@ -42,6 +42,7 @@ LCOLS = [
     ('Licensed product', 'licensed', 10), ('Production status', 'status', 18), ('Manufacturer', 'manufacturer', 22),
     ('License holder', 'mah', 22), ('Units sold', 'units', 14), ('Sales value (rial)', 'value', 18),
     ('Avg price per unit (rial)', None, 14), ('Data flag', 'flag', 28), ('Source', 'src_file', 16), ('Source row', 'src_row', 9),
+    ('Ingredient family', 'family', 28),
 ]
 for j, (h, _, w) in enumerate(LCOLS, 1):
     c = led.cell(row=1, column=j, value=h)
@@ -72,6 +73,7 @@ led.auto_filter.ref = f'A1:{L(len(LCOLS))}{last}'
 
 RNG = lambda col: f'Ledger!${col}$2:${col}${last}'
 YR, CO, CAT, FORM = RNG('A'), RNG('C'), RNG('M'), RNG('K')
+FAM = RNG(L(len(LCOLS)))
 UN, VA = RNG(L(iU)), RNG(L(iV))
 
 
@@ -209,6 +211,8 @@ pivot('By company', 'Sales value by company and year', CO, ranked('company'), 'C
       note='Sales value in billion rial, nominal. Companies are ranked by total value across all years. Live formulas over the Ledger sheet.')
 pivot('By category', 'Sales value by category and year', CAT, ranked('category'), 'Category',
       note='Category is a standard grouping built from the functional group each company reported (see Cleaning log).')
+pivot('By ingredient family', 'Sales value by ingredient family and year', FAM, ranked('family'), 'Ingredient family',
+      note='Ingredient family is a keyword-based grouping built from the ingredient group and product names (see Cleaning log).', width=34)
 pivot('By dosage form', 'Sales value by dosage form and year', FORM, ranked('form'), 'Dosage form')
 
 # ------------------------------------------------------------------ cleaning log
@@ -226,6 +230,7 @@ items = [
     ('Dosage form', 'About 100 spellings (Persian and English) grouped into the standard list in the Dosage form column. The original text is kept in Dosage form (as reported).'),
     ('Licensed, status, country', 'Yes/No spellings unified (بله, YES, خیر, NO). Production status mapped to Own manufacture, Contract manufactured, Bulk or Imported. Country names translated.'),
     ('Category', 'Two different wording styles for functional groups (older: "supplement for ..."; newer: benefit wording) were mapped to 20 standard categories by keyword. Lines the company marked "other" were placed using the ingredient group and product name; about 2% remain Other / unclassified. The original text is kept in Functional group (as reported).'),
+    ('Ingredient family', 'About 33 families (multivitamin, vitamin C, whey protein, calcium and so on) assigned by keyword from the ingredient group, product names and brand, in Persian and Latin. About 5% of lines match no rule and sit in Other and mixed formulas.'),
     ('Production year', 'Short years such as 96 and 99 expanded to 1396 and 1399. For the combined file, the production year column was used as the sales year.'),
     ('Totals check', 'The 1399 file ends with a loose total of about 57,002 billion rial and 5,042 million units. The cleaned 1399 lines sum to a slightly higher figure, so treat 1399 as approximate (the difference is about 1%).'),
 ]
@@ -297,7 +302,7 @@ wb.save(OUT)
 csv_path = os.path.splitext(OUT)[0] + '_clean.csv'
 with open(csv_path, 'w', newline='', encoding='utf-8-sig') as f:
     w = csv.writer(f)
-    w.writerow([h for h, *_ in LCOLS[:-6]] + ['Units sold', 'Sales value (rial)', 'Data flag', 'Source', 'Source row'])
+    w.writerow([h for h, *_ in LCOLS[:-7]] + ['Units sold', 'Sales value (rial)', 'Data flag', 'Source', 'Source row', 'Ingredient family'])
     for r in rows:
-        w.writerow([r[k] if r[k] is not None else '' for _, k, _ in LCOLS[:-6]] + [r['units'] if r['units'] is not None else '', r['value'] if r['value'] is not None else '', r['flag'], r['src_file'], r['src_row']])
+        w.writerow([r[k] if r[k] is not None else '' for _, k, _ in LCOLS[:-7]] + [r['units'] if r['units'] is not None else '', r['value'] if r['value'] is not None else '', r['flag'], r['src_file'], r['src_row'], r['family']])
 print('saved', OUT, csv_path, N, 'lines')

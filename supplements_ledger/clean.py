@@ -1,6 +1,7 @@
 """Cleaning rules for the supplement yearbooks: one tidy record per product, company and year."""
 import re, json, collections
 from . import parse_raw as parse
+from .families import family as ingredient_family
 
 BIDI = re.compile(r'[​‎‏‪-‮⁦-⁩﻿]')
 PDIG = str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789')
@@ -17,7 +18,7 @@ def txt(s):
     s = s.replace('"', '').replace('“', '').replace('”', '')
     s = re.sub(r'\+?[A-Z]\d{2,5}:[A-Z]\d{2,5}', '', s)  # stray spreadsheet cell references left in some names
     s = re.sub(r'\s+', ' ', s).strip()
-    if re.fullmatch(r'[-_—–.…\s]*', s) or s in ('ندارد', 'nan', 'NAN'):
+    if re.fullmatch(r'[-_—–.…\s0]*', s) or s in ('ندارد', 'nan', 'NAN'):
         return ''
     return s
 
@@ -262,9 +263,9 @@ def build():
         r['name_en'] = txt(d.get('name_en', ''))
         r['brand'] = txt(d.get('brand', ''))
         r['umbrella'] = txt(d.get('umbrella', ''))
-        r['strength'] = txt(d.get('strength', ''))
+        r['strength'] = '' if re.fullmatch(r'\d', txt(d.get('strength', ''))) else txt(d.get('strength', ''))
         r['flavor'] = txt(d.get('flavor', ''))
-        r['volume'] = txt(d.get('volume', ''))
+        r['volume'] = '' if re.fullmatch(r'\d', txt(d.get('volume', ''))) else txt(d.get('volume', ''))
         r['form_raw'] = txt(d.get('form', ''))
         r['form'] = form_std(d.get('form', '')) or 'Not stated'
         r['licensed'] = licensed_std(d.get('licensed', ''))
@@ -273,6 +274,7 @@ def build():
         r['ingr'] = txt(d.get('ingr_group', ''))
         r['user_group'] = txt(d.get('user_group', ''))
         r['category'] = category(r['func_raw'], r['ingr'], f"{r['name_en']} {r['name_fa']}")
+        r['family'] = ingredient_family(r['ingr'], r['name_en'], r['name_fa'], r['brand'])
         r['mfr_country'] = country(d.get('mfr_country', ''))
         r['manufacturer'] = txt(d.get('manufacturer', ''))
         r['mah'] = txt(d.get('mah', ''))

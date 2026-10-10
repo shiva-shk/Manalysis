@@ -34,3 +34,12 @@ def test_category_does_not_match_inside_words():
     assert clean.category('تامین ویتامین ها و مواد معدنی', '', '') == 'General tonic & energy'
     assert clean.category('پوست، مو و ناخن', '', '') == 'Skin, hair & nails'
     assert clean.category('سایر', 'پروتئین وی', '') == 'Sports nutrition'
+
+
+def test_ingredient_family_rules():
+    from supplements_ledger.families import family
+    assert family('پروتئین وی', 'WHEY PROTEIN', '', '') == 'Whey protein'
+    assert family('', 'Calcium carbonate 500', '', '') == 'Calcium & vitamin D'
+    assert family('سایر', 'Zorbex', '', '') == 'Other and mixed formulas'
+    # short Persian tokens must not match inside longer words ("ید" inside "اسید")
+    assert family('', '', 'اسید لینولئیک', '') != 'Selenium & trace minerals'
