@@ -148,6 +148,11 @@
   .pagination{ display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:12px; font-size:12.5px; color:var(--text-secondary); }
   .pagination button{ border:1px solid var(--border-strong); background:var(--surface); color:var(--text-primary); border-radius:7px; padding:5px 10px; cursor:pointer; font-size:12.5px; }
   .pagination button:disabled{ opacity:.4; cursor:not-allowed; }
+  .pagination .export-btn{ margin-right:auto; background:var(--accent-soft); color:var(--accent-strong); border-color:transparent; font-weight:600; }
+  .pagination .export-btn:hover:not(:disabled){ border-color:var(--accent); }
+  .export-msg{ font-size:12px; color:var(--text-muted); }
+  .explain{ font-size:13px; color:var(--text-secondary); max-width:78ch; margin:0; }
+  .explain b{ color:var(--text-primary); font-weight:600; }
 
   .combo{ position:relative; max-width:520px; }
   .combo input{ width:100%; font-size:14.5px; padding:11px 14px; border-radius:10px; }
@@ -230,6 +235,7 @@
 </div>
 <div id="tooltip" role="tooltip" hidden></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script id="dashboard-data" type="application/json">__DATA__</script>
 <script>
 (function(){
@@ -478,7 +484,62 @@
     return segs;
   }
 
+
+  /* ---------------- Excel export ---------------- */
+  var DL = null;
+  function isoDate(){ return new Date().toISOString().slice(0, 10); }
+  function money(v){ return CURRENCY === 'USD' ? Math.round(v * 100) / 100 : Math.round(v); }
+  function currencyNotes(){
+    if (CURRENCY !== 'USD') return [['Currency', 'Iranian rial (IRR), nominal, not adjusted for inflation']];
+    return [['Currency', 'US dollars, converted at the rate chosen for each fiscal year on the dashboard'], ['Rates used (IRR per USD)', YEARS.map(function(y, i){ return 'FY' + y + ': ' + nfFull.format(fx(i)); }).join('; ')]];
+  }
+  function sheetWidths(headers, rows){
+    return headers.map(function(h, i){
+      var w = String(h).length + 2;
+      for (var r = 0; r < Math.min(rows.length, 200); r++){ var v = rows[r][i]; if (v != null) w = Math.max(w, String(v).length + 1); }
+      return { wch: Math.min(44, Math.max(9, w)) };
+    });
+  }
+  function buildWorkbook(ex, rows){
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet([ex.headers].concat(rows));
+    ws['!cols'] = sheetWidths(ex.headers, rows);
+    if (rows.length) ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: ex.headers.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    var notes = [['Export', ex.title], ['Created', isoDate()], ['Rows', rows.length]].concat(ex.filters || []).concat(currencyNotes()).concat([
+      ['Source', 'Supplement producers syndicate yearbooks (sales by manufacturers to distributors), cleaned and combined. FY1390 to FY1395 come from one combined yearbook.'],
+      ['Reading the numbers', 'Value columns are nominal and sum the cleaned ledger lines. FY' + YEARS[THIN] + ' lists far fewer companies than the years around it, so compare it with care.']
+    ]);
+    var wn = XLSX.utils.aoa_to_sheet(notes);
+    wn['!cols'] = [{ wch: 26 }, { wch: 100 }];
+    XLSX.utils.book_append_sheet(wb, wn, 'About this export');
+    return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  }
+  function doExport(spec, all, btn, msg){
+    var ex = spec(), label = btn.textContent;
+    var data;
+    try { data = buildWorkbook(ex, all.map(ex.row)); }
+    catch (e){ msg.textContent = 'Could not build the file.'; return; }
+    btn.disabled = true; btn.textContent = 'Waiting for you to confirm…'; msg.textContent = '';
+    DL.save({ filename: 'supplements-ledger-' + ex.name + '-' + isoDate() + '.xlsx', data: data }).then(function(){
+      msg.textContent = 'Saved.';
+    }).catch(function(e){
+      var c = e && e.code;
+      msg.textContent = c === 'declined' ? '' : c === 'rate_limited' ? 'Another save is waiting. Try again in a moment.' : c === 'too_large' ? 'The file is too large. Narrow the filters and try again.' : 'Saving is not available here.';
+    }).then(function(){ btn.disabled = false; btn.textContent = label; setTimeout(function(){ msg.textContent = ''; }, 5000); });
+  }
+  function yearHeaders(){ return YEARS.map(function(y){ return 'Units FY' + y; }).concat(YEARS.map(function(y){ return 'Value FY' + y + ' (' + CURRENCY + ')'; })); }
+  function productExport(name, title, filters){
+    return function(){
+      return { name: name, title: title, filters: filters(),
+        headers: ['Product line', 'Product name (Persian)', 'Company', 'Ingredient family', 'Category', 'Dosage form'].concat(yearHeaders()).concat(['Average price FY' + YEARS[LATEST] + ' (' + CURRENCY + ' per unit)']),
+        row: function(p){ var pr = price(p.r[LATEST], p.u[LATEST]); return [p.l, p.fa || '', D.companies[p.c], D.fams[p.g], D.cats[p.k], D.forms[p.f]].concat(p.u).concat(p.r.map(money)).concat([pr == null ? '' : (CURRENCY === 'USD' ? Math.round(pr * 1000) / 1000 : Math.round(pr))]); } };
+    };
+  }
+  function searchNote(t){ var q = t && t.getQuery ? t.getQuery() : ''; return ['Search text', q || '(none)']; }
+
   /* ---------------- sortable table ---------------- */
+  var tableRegistry = {};
   function makeTable(cfg){
     var cols = cfg.columns, size = cfg.pageSize || 25, root = $(cfg.mountId);
     var def = cols.filter(function(c){ return c.defaultSort; })[0] || cols[0];
@@ -520,12 +581,22 @@
       });
       t.appendChild(tb); wrap.appendChild(t); root.appendChild(wrap);
       var pg = document.createElement('div'); pg.className = 'pagination';
+      if (cfg.exporter && DL && window.XLSX){
+        var eb = document.createElement('button'); eb.type = 'button'; eb.className = 'export-btn'; eb.disabled = !all.length;
+        eb.textContent = 'Export ' + all.length.toLocaleString() + ' row' + (all.length === 1 ? '' : 's') + ' to Excel';
+        eb.title = 'Exports every row that matches the current search and filters, not only this page';
+        var em = document.createElement('span'); em.className = 'export-msg'; em.setAttribute('role', 'status');
+        eb.addEventListener('click', function(){ doExport(cfg.exporter, all, eb, em); });
+        pg.appendChild(eb); pg.appendChild(em);
+      }
       var info = document.createElement('span'); info.textContent = all.length ? (page * size + 1) + '–' + Math.min(all.length, (page + 1) * size) + ' of ' + all.length.toLocaleString() : '0 rows';
       var pb = document.createElement('button'); pb.textContent = 'Prev'; pb.disabled = page <= 0; pb.addEventListener('click', function(){ page--; render(); });
       var nb = document.createElement('button'); nb.textContent = 'Next'; nb.disabled = page >= pages - 1; nb.addEventListener('click', function(){ page++; render(); });
       pg.appendChild(info); pg.appendChild(pb); pg.appendChild(nb); root.appendChild(pg);
     }
-    return { render: render, setQuery: function(q){ query = q; page = 0; render(); }, reset: function(){ page = 0; render(); } };
+    var api = { render: render, setQuery: function(q){ query = q; page = 0; render(); }, reset: function(){ page = 0; render(); }, getQuery: function(){ return query; } };
+    tableRegistry[cfg.mountId] = api;
+    return api;
   }
   function linkBtn(td, text, title, fn, cls){ var b = document.createElement('button'); b.className = 'generic-link ellip ' + (cls || ''); b.title = title; b.textContent = text; b.addEventListener('click', fn); td.appendChild(b); }
   function sparkCell(td, arr, color){ var h = document.createElement('div'); h.innerHTML = sparklineSVG(arr, color || 'var(--cat-1)'); td.appendChild(h.firstChild); }
@@ -654,7 +725,7 @@
         '<div class="card"><div class="card-head"><span class="card-title">Market volume trend</span><span class="card-sub">Sum of units sold, all products</span></div><div class="chart-surface" id="ov-units"></div></div>' +
       '</div><div class="grid-2">' +
         '<div class="card"><div class="card-head"><span class="card-title">Average price per unit</span><span class="card-sub">' + CURRENCY + ', value divided by units</span></div><div class="chart-surface" id="ov-price"></div></div>' +
-        '<div class="card"><div class="card-head"><span class="card-title">Market concentration</span><span class="card-sub">Share of sales value held by the top companies</span></div><div class="chart-surface" id="ov-conc"></div></div>' +
+        '<div class="card"><div class="card-head"><span class="card-title">Market concentration</span><span class="card-sub">Share of sales value held by the top 1, 5 and 10 companies each year (ranked by value)</span></div><div class="chart-surface" id="ov-conc"></div></div>' +
       '</div>' +
       '<div class="card"><div class="card-head"><div><span class="card-title">Top ingredient families, FY' + YEARS[LATEST] + '</span><div class="card-sub" id="ov-fam-sub"></div></div>' + metricToggle('ov-fam-toggle') + '</div><div id="ov-fam"></div></div>' +
       '<div class="card"><div class="card-head"><div><span class="card-title">Sales by category, FY' + YEARS[LATEST] + '</span><div class="card-sub">Functional grouping as reported · click a row to compare in full</div></div></div><div id="ov-cat"></div></div></div>' +
@@ -678,33 +749,60 @@
   }
 
   /* ---------------- Companies ---------------- */
+  var coMetric = 'r';
   function renderCompanies(){
     var panel = $('panel-companies');
     panel.innerHTML =
-      '<div class="tab-body"><div class="grid-2">' +
-        '<div class="card"><div class="card-head"><span class="card-title">Market share, FY' + YEARS[LATEST] + '</span><span class="card-sub" id="co-share-sub"></span></div><div id="co-share"></div></div>' +
-        '<div class="card"><div class="card-head"><span class="card-title">Top companies, ' + N + '-year trend</span><span class="card-sub">Sales value (' + CURRENCY + ')</span></div><div class="chart-surface" id="co-trend"></div></div>' +
+      '<div class="tab-body"><div class="card"><div class="card-head"><div><span class="card-title">Top companies</span><div class="card-sub">Choose how companies are ranked</div></div>' + metricToggle('co-metric') + '</div><p class="explain" id="co-explain"></p></div>' +
+      '<div class="grid-2">' +
+        '<div class="card"><div class="card-head"><div><span class="card-title" id="co-share-title"></span><div class="card-sub" id="co-share-sub"></div></div></div><div id="co-share"></div></div>' +
+        '<div class="card"><div class="card-head"><div><span class="card-title">Top companies, ' + N + '-year trend</span><div class="card-sub" id="co-trend-sub"></div></div></div><div class="chart-surface" id="co-trend"></div></div>' +
       '</div><div class="grid-2"><div class="card"><div class="card-head"><span class="card-title">Active companies</span><span class="card-sub">Companies with sales in each year</span></div><div class="chart-surface" id="co-count"></div></div><div class="card"><div class="card-head"><span class="card-title">Active product lines</span><span class="card-sub">Lines with sales in each year</span></div><div class="chart-surface" id="co-lines"></div></div></div>' +
-      '<div class="card"><div class="card-head"><span class="card-title">All companies</span><span class="card-sub">' + D.companies.length + ' companies</span></div><div class="toolbar"><input type="search" id="co-search" placeholder="Search company…" aria-label="Search company"></div><div id="co-table"></div></div></div>' +
+      '<div class="card"><div class="card-head"><span class="card-title">All companies</span><span class="card-sub">' + D.companies.length + ' companies · the rank columns show FY' + YEARS[LATEST] + ' by value and by units</span></div><div class="toolbar"><input type="search" id="co-search" placeholder="Search company…" aria-label="Search company"></div><div id="co-table"></div></div></div>' +
       '<aside class="tab-desc"><p>Company names are shown as recorded, in Persian. Spelling variants were merged during cleaning and the 1404 edition’s Latin spellings were matched back to the Persian names.</p></aside>';
-    var comp = compEntries(), totalR = totals[LATEST][1];
-    renderShareBar($('co-share'), shareSegs(comp, function(e){ return e.r[LATEST]; }, totalR, fmtFullRial, 7));
-    $('co-share-sub').textContent = 'Top 7 of ' + comp.filter(function(c){ return c.r[LATEST] > 0; }).length + ' active companies, by sales value';
-    var top6 = comp.slice().sort(function(a, b){ return b.r[LATEST] - a.r[LATEST]; }).slice(0, 6);
-    renderTrendChart($('co-trend'), { series: top6.map(function(c, i){ return { name: c.label, color: CAT[i], values: c.r }; }), formatter: fmtRial, aria: 'Top company trend' });
+    $('co-metric').querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.metric === coMetric); });
+    var comp = compEntries(), totalR = totals[LATEST][1], totalU = totals[LATEST][0];
+    var active = comp.filter(function(c){ return c.r[LATEST] > 0 || c.u[LATEST] > 0; });
+    function ranks(key){ var m = {}; active.slice().sort(function(a, b){ return b[key][LATEST] - a[key][LATEST]; }).forEach(function(c, i){ m[c.id] = i + 1; }); return m; }
+    var rankV = ranks('r'), rankU = ranks('u');
+    function draw(metric){
+      coMetric = metric;
+      var byV = metric === 'r', key = metric;
+      var tot = byV ? totalR : totalU;
+      renderShareBar($('co-share'), shareSegs(comp, function(e){ return e[key][LATEST]; }, tot || 1, byV ? fmtFullRial : fmtFullUnits, 7));
+      $('co-share-title').textContent = 'Market share, FY' + YEARS[LATEST] + (byV ? ' (by sales value)' : ' (by units)');
+      $('co-share-sub').textContent = 'Top 7 of ' + active.length + ' active companies, ranked by ' + (byV ? 'sales value in ' + CURRENCY : 'units sold');
+      var top6 = comp.slice().sort(function(a, b){ return b[key][LATEST] - a[key][LATEST]; }).slice(0, 6);
+      renderTrendChart($('co-trend'), { series: top6.map(function(c, i){ return { name: c.label, color: CAT[i], values: c[key] }; }), formatter: byV ? fmtRial : fmtUnits, aria: 'Top company trend' });
+      $('co-trend-sub').textContent = 'The six leaders of FY' + YEARS[LATEST] + ' by ' + (byV ? 'value (' + CURRENCY + ')' : 'units');
+      // explain how the two rankings differ, using the biggest gap among the top 10 by units
+      var topU = active.slice().sort(function(a, b){ return b.u[LATEST] - a.u[LATEST]; }).slice(0, 10);
+      var gap = topU.slice().sort(function(a, b){ return (rankV[b.id] - rankU[b.id]) - (rankV[a.id] - rankU[a.id]); })[0];
+      var ex = gap && rankV[gap.id] - rankU[gap.id] >= 3 ? ' For example, ' + esc(gap.label) + ' is #' + rankU[gap.id] + ' by units but #' + rankV[gap.id] + ' by value, because it sells many lower-priced packs.' : '';
+      $('co-explain').innerHTML = (byV ? 'Companies are ranked by <b>sales value</b>: the rial amount the company billed to distributors in FY' + YEARS[LATEST] + ' (' + CURRENCY + ', nominal). ' : 'Companies are ranked by <b>volume</b>: the number of packs (units) the company delivered to distributors in FY' + YEARS[LATEST] + '. ') + 'Switch the toggle to rank by ' + (byV ? 'units' : 'value') + ' instead. Value rewards higher prices, volume rewards cheap, high-turnover products.' + ex + ' Shares are of the whole market in that year.';
+    }
+    draw(coMetric); wireMetric('co-metric', draw);
     renderTrendChart($('co-count'), { series: [{ name: 'Companies with sales', color: 'var(--cat-7)', values: YEARS.map(function(_, y){ return comp.filter(function(c){ return c.r[y] > 0 || c.u[y] > 0; }).length; }) }], formatter: function(v){ return String(Math.round(v)); }, aria: 'Active companies per year' });
     renderTrendChart($('co-lines'), { series: [{ name: 'Product lines', color: 'var(--cat-3)', values: YEARS.map(function(_, y){ return products.filter(function(p){ return p.u[y] > 0 || p.r[y] > 0; }).length; }) }], formatter: function(v){ return String(Math.round(v)); }, aria: 'Active product lines per year' });
     var cols = [
       { key: 'name', label: 'Company', defaultDir: 'asc', sortVal: function(r){ return r.label; }, render: function(td, r){ linkBtn(td, r.label, r.label + ' — view company profile', function(){ companyDiveApi.select(r.id); }, 'fa'); } },
+      { key: 'rv', label: 'Rank by value', align: 'num', defaultDir: 'asc', sortVal: function(r){ return rankV[r.id] || 9999; }, render: function(td, r){ td.textContent = rankV[r.id] || '—'; } },
+      { key: 'ru', label: 'Rank by units', align: 'num', defaultDir: 'asc', sortVal: function(r){ return rankU[r.id] || 9999; }, render: function(td, r){ td.textContent = rankU[r.id] || '—'; } },
       { key: 'np', label: 'Lines FY' + YEARS[LATEST], align: 'num', sortVal: function(r){ return r.np; }, render: function(td, r){ td.textContent = r.np || '—'; } },
       { key: 'units', label: 'Units FY' + YEARS[LATEST], align: 'num', sortVal: function(r){ return r.u[LATEST]; }, render: function(td, r){ td.textContent = fmtUnits(r.u[LATEST]); } },
       { key: 'value', label: 'Value FY' + YEARS[LATEST], align: 'num', defaultSort: true, sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = fmtRial(r.r[LATEST]); } },
-      { key: 'share', label: 'Share', align: 'num', sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = (r.r[LATEST] / totalR * 100).toFixed(2) + '%'; } },
+      { key: 'share', label: 'Share (value)', align: 'num', sortVal: function(r){ return r.r[LATEST]; }, render: function(td, r){ td.textContent = (totalR ? r.r[LATEST] / totalR * 100 : 0).toFixed(2) + '%'; } },
       { key: 'yoy', label: 'YoY (value)', align: 'num', sortVal: function(r){ var p = pct(r.r[LATEST], r.r[PREV]); return p == null ? -Infinity : p; }, render: function(td, r){ paintGrowth(td, yoyCell(r.r[LATEST], r.r[PREV])); } },
       { key: 'cagr', label: 'CAGR (value)', align: 'num', sortVal: function(r){ var g = growthSeries(r.r, LATEST); return g.isNew ? Infinity : (g.pct == null ? -Infinity : g.pct); }, render: function(td, r){ paintGrowth(td, growthCell(r.r)); } },
       { key: 'trend', label: N + '-yr trend', sortable: false, render: function(td, r){ sparkCell(td, r.r); } }
     ];
-    var t = makeTable({ mountId: 'co-table', getRows: function(){ return comp; }, columns: cols, pageSize: 20, searchFn: function(r, q){ return r.label.toLowerCase().indexOf(q) > -1; } });
+    var t = makeTable({ mountId: 'co-table', getRows: function(){ return comp; }, columns: cols, pageSize: 20,
+      exporter: function(){
+        return { name: 'companies', title: 'Companies', filters: [searchNote(t), ['Ranking columns', 'Rank by value and rank by units are for FY' + YEARS[LATEST] + ' among companies with sales that year']],
+          headers: ['Company', 'Rank by value FY' + YEARS[LATEST], 'Rank by units FY' + YEARS[LATEST], 'Product lines sold FY' + YEARS[LATEST], 'Share of market value FY' + YEARS[LATEST]].concat(yearHeaders()),
+          row: function(c){ return [c.label, rankV[c.id] || '', rankU[c.id] || '', c.np || 0, totalR ? Math.round(c.r[LATEST] / totalR * 10000) / 10000 : 0].concat(c.u).concat(c.r.map(money)); } };
+      },
+      searchFn: function(r, q){ return r.label.toLowerCase().indexOf(q) > -1; } });
     t.render(); $('co-search').addEventListener('input', function(e){ t.setQuery(e.target.value.trim().toLowerCase()); });
   }
 
@@ -740,6 +838,10 @@
     }
     build();
     var table = makeTable({ mountId: 'ex-table', pageSize: 25,
+      exporter: productExport('product-lines', 'Product lines from the Product Explorer', function(){
+        var st = explorerState, nm = function(list, v){ return v === '' ? 'All' : list[+v]; };
+        return [searchNote(table), ['Lines with sales in', 'FY' + YEARS[st.year]], ['Category', nm(D.cats, st.cat)], ['Ingredient family', nm(D.fams, st.fam)], ['Dosage form', nm(D.forms, st.form)]];
+      }),
       getRows: function(){ return products.filter(function(p){
         var y = explorerState.year;
         if (!(p.u[y] > 0 || p.r[y] > 0)) return false;
@@ -798,7 +900,7 @@
       { key: 'cagr', label: 'CAGR (value)', align: 'num', sortVal: function(r){ var g = growthSeries(r.r, y); return g.isNew ? Infinity : (g.pct == null ? -Infinity : g.pct); }, render: function(td, r){ paintGrowth(td, growthCell(r.r)); } },
       { key: 'trend', label: N + '-yr trend', sortable: false, render: function(td, r){ sparkCell(td, r.r); } }
     ];
-    var t = makeTable({ mountId: prefix + '-table', getRows: function(){ return list; }, columns: cols, pageSize: 15, searchFn: function(r, q){ return r.l.toLowerCase().indexOf(q) > -1; } });
+    var t = makeTable({ mountId: prefix + '-table', exporter: productExport(o.exportName, 'Product lines: ' + o.title, function(){ return [['Scope', o.scope], searchNote(t)]; }), getRows: function(){ return list; }, columns: cols, pageSize: 15, searchFn: function(r, q){ return r.l.toLowerCase().indexOf(q) > -1; } });
     t.render();
   }
 
@@ -822,7 +924,7 @@
       var comps = {}; list.forEach(function(p){ if (p.r[LATEST] > 0 || p.u[LATEST] > 0) comps[p.c] = 1; });
       $('fd-detail').innerHTML = detailBlock('fd', ent, list, { title: D.fams[gi], sub: list.length + ' product lines · ' + Object.keys(comps).length + ' companies active in FY' + YEARS[LATEST], listTitle: 'Top product lines',
         extra: '<div class="card"><div class="card-head"><span class="card-title">Company share, FY' + YEARS[LATEST] + '</span><span class="card-sub">Share of this family’s sales value</span></div><div id="fd-share"></div></div>' });
-      fillDetail('fd', ent, list, { title: D.fams[gi], countLabel: 'Companies', countValue: Object.keys(comps).length, countUnit: 'active', otherLabel: 'Company', otherFn: function(p){ return D.companies[p.c]; }, otherLink: function(p){ companyDiveApi.select(p.c); }, metaFn: function(p){ return D.companies[p.c]; } });
+      fillDetail('fd', ent, list, { title: D.fams[gi], exportName: 'ingredient-' + gi, scope: 'Ingredient family: ' + D.fams[gi], countLabel: 'Companies', countValue: Object.keys(comps).length, countUnit: 'active', otherLabel: 'Company', otherFn: function(p){ return D.companies[p.c]; }, otherLink: function(p){ companyDiveApi.select(p.c); }, metaFn: function(p){ return D.companies[p.c]; } });
       var byC = {}; list.forEach(function(p){ byC[p.c] = (byC[p.c] || 0) + p.r[LATEST]; });
       var segs = shareSegs(Object.keys(byC).map(function(c){ return { label: D.companies[c], v: byC[c] }; }), function(e){ return e.v; }, ent.r[LATEST] || 1, fmtFullRial, 7);
       renderShareBar($('fd-share'), segs);
@@ -851,7 +953,7 @@
       var mix = {}; list.forEach(function(p){ mix[p.g] = (mix[p.g] || 0) + p.r[LATEST]; });
       $('cd-detail').innerHTML = detailBlock('cd', ent, list, { title: D.companies[ci], sub: list.length + ' product lines · market share FY' + YEARS[LATEST] + ': ' + (totals[LATEST][1] ? (ent.r[LATEST] / totals[LATEST][1] * 100).toFixed(2) : '0') + '%', listTitle: 'Top product lines',
         extra: '<div class="card"><div class="card-head"><span class="card-title">Portfolio mix, FY' + YEARS[LATEST] + '</span><span class="card-sub">Share of this company’s sales by ingredient family</span></div><div id="cd-mix"></div></div>' });
-      fillDetail('cd', ent, list, { title: D.companies[ci], countLabel: 'Ingredient families', countValue: Object.keys(fams).length, countUnit: 'active', otherLabel: 'Ingredient family', otherFn: function(p){ return D.fams[p.g]; }, otherLink: function(p){ famDiveApi.select(p.g); },
+      fillDetail('cd', ent, list, { title: D.companies[ci], exportName: 'company-' + ci, scope: 'Company: ' + D.companies[ci], countLabel: 'Ingredient families', countValue: Object.keys(fams).length, countUnit: 'active', otherLabel: 'Ingredient family', otherFn: function(p){ return D.fams[p.g]; }, otherLink: function(p){ famDiveApi.select(p.g); },
         metaFn: function(p){ var fv = famAgg[p.g].r[LATEST]; return fv > 0 && p.r[LATEST] > 0 ? (p.r[LATEST] / fv * 100).toFixed(1) + '% of ' + D.fams[p.g] : ''; } });
       renderShareBar($('cd-mix'), shareSegs(Object.keys(mix).map(function(g){ return { label: D.fams[g], v: mix[g] }; }), function(e){ return e.v; }, ent.r[LATEST] || 1, fmtFullRial, 7));
     }
@@ -957,6 +1059,13 @@
       { key: 'flag', label: 'Flag', defaultDir: 'desc', sortVal: function(r){ return r[7]; }, render: function(td, r){ if (r[7]){ var c = document.createElement('span'); c.className = 'chip flag'; c.textContent = r[6] == null || r[5] == null ? 'Missing' : (r[5] === 0 && r[6] === 0 ? 'Zero' : 'Check'); td.appendChild(c); } } }
     ];
     var table = makeTable({ mountId: 'lg-table', pageSize: 25, columns: cols,
+      exporter: function(){
+        var st = ledgerState, nm = function(list, v){ return v === '' ? 'All' : list[+v]; };
+        return { name: 'ledger-lines', title: 'Ledger lines', filters: [searchNote(table), ['Year', st.year === '' ? 'All' : 'FY' + YEARS[+st.year]], ['Category', nm(D.cats, st.cat)], ['Dosage form', nm(D.forms, st.form)], ['Zero-sales lines', st.hideZero ? 'Hidden' : 'Included']],
+          headers: ['Year', 'Company', 'Product line', 'Product name (Persian)', 'Strength', 'Flavor', 'Pack size', 'Dosage form', 'Category', 'Ingredient family', 'Units sold', 'Sales value (' + CURRENCY + ')', 'Price per unit (' + CURRENCY + ')', 'Data flag'],
+          row: function(r){ var p = products[r[1]], v = r[6] == null ? '' : money(conv(r[6], r[0])), pr = r[5] > 0 && r[6] > 0 ? conv(r[6], r[0]) / r[5] : null;
+            return ['FY' + YEARS[r[0]], D.companies[p.c], p.l, p.fa || '', r[2] || '', r[3] || '', r[4] || '', D.forms[p.f], D.cats[p.k], D.fams[p.g], r[5] == null ? '' : r[5], v, pr == null ? '' : (CURRENCY === 'USD' ? Math.round(pr * 1000) / 1000 : Math.round(pr)), r[7] ? (r[6] == null || r[5] == null ? 'Missing value' : (r[5] === 0 && r[6] === 0 ? 'Zero sales' : 'Check')) : '']; } };
+      },
       getRows: function(){
         var s = ledgerState;
         var out = lines.filter(function(r){
@@ -986,6 +1095,9 @@
   }
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.addEventListener('click', function(){ activateTab(b.dataset.tab); }); });
 
+  if (window.claude && typeof window.claude.use === 'function'){
+    window.claude.use('downloads').then(function(d){ if (d){ DL = d; Object.keys(tableRegistry).forEach(function(k){ tableRegistry[k].render(); }); } }).catch(function(){});
+  }
   renderCurrencyBar(); renderKPIs(); renderOverview(); renderCompanies(); renderExplorer(); renderFamilyDive(); renderCompanyDive(); renderCategories(); renderForms(); renderLedger();
   var h = (location.hash || '').replace('#', ''); if (/^[a-z]+$/.test(h)) activateTab(h);
 })();
